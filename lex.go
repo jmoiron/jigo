@@ -34,7 +34,9 @@ const (
 	tokenIf
 	tokenElse
 	tokenElif
+	tokenEndif
 	tokenFor
+	tokenEndfor
 	tokenIn
 	tokenOr
 	tokenAnd
@@ -52,6 +54,69 @@ const (
 	tokenFrom
 	tokenEOF
 )
+
+func (t tokenType) Name() string {
+	switch t {
+	case tokenText:
+		return "Text"
+	case tokenOpenTag:
+		return "OpenTag"
+	case tokenCloseTag:
+		return "CloseTag"
+	case tokenOpenVar:
+		return "OpenVar"
+	case tokenCloseVar:
+		return "CloseVar"
+	case tokenOpenComment:
+		return "OpenComment"
+	case tokenCloseComment:
+		return "CloseComment"
+	case tokenError:
+		return "Error"
+	case tokenIf:
+		return "If"
+	case tokenElse:
+		return "Else"
+	case tokenElif:
+		return "Elif"
+	case tokenFor:
+		return "For"
+	case tokenIn:
+		return "On"
+	case tokenOr:
+		return "Or"
+	case tokenAnd:
+		return "And"
+	case tokenIs:
+		return "Is"
+	case tokenNot:
+		return "Not"
+	case tokenConstant:
+		return "Constant"
+	case tokenString:
+		return "String"
+	case tokenName:
+		return "Name"
+	case tokenNumber:
+		return "Number"
+	case tokenPipe:
+		return "Pipe"
+	case tokenDot:
+		return "Dot"
+	case tokenChar:
+		return "Char"
+	case tokenInclude:
+		return "Include"
+	case tokenImport:
+		return "Import"
+	case tokenFrom:
+		return "From"
+	case tokenEOF:
+		return "EOF"
+	default:
+		return "UnknownTokenType"
+	}
+}
 
 // represents a single token
 type token struct {
@@ -158,6 +223,14 @@ func scanComment(s *scanner) stateFn {
 	return nil
 }
 
+func textToken(s *scanner) {
+	if s.p == s.w {
+		return
+	} else {
+		s.emit(tokenText)
+	}
+}
+
 func tagToken(s *scanner) {
 	if s.p == s.w {
 		return
@@ -172,8 +245,12 @@ func tagToken(s *scanner) {
 			s.emit(tokenElse)
 		case "elif":
 			s.emit(tokenElif)
+		case "endif":
+			s.emit(tokenEndif)
 		case "for":
 			s.emit(tokenFor)
+		case "endfor":
+			s.emit(tokenEndfor)
 		case "in":
 			s.emit(tokenIn)
 		case "or":
@@ -228,7 +305,7 @@ func scanText(s *scanner) stateFn {
 		switch s.input[s.p] {
 		case s.ot[0]:
 			if cmp(s.input[s.p:s.p+s.otl], s.ot) == 0 {
-				s.emit(tokenText)
+				textToken(s)
 				s.p += s.otl
 				s.emit(tokenOpenTag)
 				return scanTag
@@ -236,7 +313,7 @@ func scanText(s *scanner) stateFn {
 			fallthrough
 		case s.ov[0]:
 			if cmp(s.input[s.p:s.p+s.ovl], s.ov) == 0 {
-				s.emit(tokenText)
+				textToken(s)
 				s.p += s.ovl
 				s.emit(tokenOpenVar)
 				return scanTag
@@ -244,7 +321,7 @@ func scanText(s *scanner) stateFn {
 			fallthrough
 		case '{':
 			if s.input[s.p+1] == '#' {
-				s.emit(tokenText)
+				textToken(s)
 				s.p += 2
 				s.ignore()
 				return scanComment
@@ -252,7 +329,7 @@ func scanText(s *scanner) stateFn {
 		}
 		continue
 	}
-	s.emit(tokenText)
+	textToken(s)
 	s.emit(tokenEOF)
 	return nil
 }

@@ -31,6 +31,8 @@ const (
 	tokenOpenComment            // {#
 	tokenCloseComment           // #}
 	tokenError                  // the value is an error message
+	tokenMacro
+	tokenEndmacro
 	tokenIf
 	tokenElse
 	tokenElif
@@ -71,6 +73,10 @@ func (t tokenType) Name() string {
 		return "OpenComment"
 	case tokenCloseComment:
 		return "CloseComment"
+	case tokenMacro:
+		return "Macro"
+	case tokenEndmacro:
+		return "Endmacro"
 	case tokenError:
 		return "Error"
 	case tokenIf:
@@ -196,6 +202,10 @@ func (s *scanner) emit(t tokenType) {
 	s.w = s.p
 }
 
+func (s *scanner) emitChar(t tokenType) {
+	s.tokens <- &token{t, s.input[s.w : s.p+1], s.w}
+}
+
 func (s *scanner) ignore() {
 	s.w = s.p
 }
@@ -232,10 +242,10 @@ func textToken(s *scanner) {
 }
 
 func tagToken(s *scanner) {
-	if s.p == s.w {
+	if s.w == s.p {
 		return
 	} else if s.p-s.w == 1 {
-		s.emit(tokenChar)
+		s.emit(tokenName)
 	} else {
 		tok := string(s.input[s.w:s.p])
 		switch tok {
@@ -265,6 +275,12 @@ func tagToken(s *scanner) {
 			s.emit(tokenImport)
 		case "from":
 			s.emit(tokenFrom)
+		case "macro":
+			s.emit(tokenMacro)
+		case "endmacro":
+			s.emit(tokenEndmacro)
+		case "nil", "none", "true", "false":
+			s.emit(tokenConstant)
 		default:
 			s.emit(tokenName)
 		}
@@ -292,6 +308,13 @@ func scanTag(s *scanner) stateFn {
 			fallthrough
 		case ' ', '\t', '\n':
 			tagToken(s)
+			s.w = s.p + 1
+		case '-', '|', '(', ')', '=', '<', '>', '*', '/', '%':
+			if s.w != s.p {
+				tagToken(s)
+				s.w = s.p
+			}
+			s.emitChar(tokenChar)
 			s.w = s.p + 1
 		}
 	}

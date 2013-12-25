@@ -23,13 +23,13 @@ func testLexer(input string, types []tokenType, values []string, t *testing.T) {
 
 func (l *lextest) assertType(typ tokenType) {
 	if l.tok.token != typ {
-		l.t.Errorf("Expecting %s, got %s\n", typ.Name(), l.tok.token.Name())
+		l.t.Errorf("Expecting %s, got %s\n  %s\n", typ.Name(), l.tok.token.Name(), l.input)
 	}
 }
 
 func (l *lextest) assertValue(val string) {
 	if string(l.tok.value) != val {
-		l.t.Errorf("Expecting %s, got %s\n", val, string(l.tok.value))
+		l.t.Errorf("Expecting %s, got %s\n  %s\n", val, string(l.tok.value), l.input)
 	}
 }
 
@@ -48,7 +48,7 @@ func tokenize(ct chan *token) []*token {
 
 func TestLexerBasic(t *testing.T) {
 	testLexer(
-		`{% if foo %}bar{% else %}baz{% endif %}`,
+		`{% if foo %}bar{%else%}baz{% endif %}`,
 		[]tokenType{
 			tokenOpenTag, tokenIf, tokenName, tokenCloseTag, tokenText,
 			tokenOpenTag, tokenElse, tokenCloseTag, tokenText, tokenOpenTag,
@@ -66,6 +66,23 @@ func TestLexerBasic(t *testing.T) {
 		},
 		[]string{"{%", "if", "foo", "-", "%}", " bar ", "{%", "-", "elif", "baz", "%}",
 			" bing", "{%", "endif", "%}", "",
+		},
+		t,
+	)
+	testLexer(
+		`{% macro foo() %}{% if (foo-1) > 3 * x %}hi{%endif%} {% endmacro %}`,
+		[]tokenType{
+			tokenOpenTag, tokenMacro, tokenName, tokenChar, tokenChar, tokenCloseTag,
+			tokenOpenTag, tokenIf, tokenChar, tokenName, tokenChar, tokenName, tokenChar,
+			tokenChar, tokenName, tokenChar, tokenName, tokenCloseTag, tokenText,
+			tokenOpenTag, tokenEndif, tokenCloseTag, tokenText, tokenOpenTag,
+			tokenEndmacro, tokenCloseTag, tokenEOF,
+		},
+		[]string{"{%", "macro", "foo", "(", ")", "%}",
+			"{%", "if", "(", "foo", "-", "1", ")",
+			">", "3", "*", "x", "%}", "hi",
+			"{%", "endif", "%}", " ", "{%",
+			"endmacro", "%}", "",
 		},
 		t,
 	)

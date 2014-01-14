@@ -16,8 +16,12 @@ func testLexer(input string, types []tokenType, values []string, t *testing.T) {
 	tokens := tokenize(s.tokens)
 	for i, tok := range tokens {
 		lt.tok = tok
-		lt.assertType(types[i])
-		lt.assertValue(values[i])
+		if i < len(types) && i < len(values) {
+			lt.assertType(types[i])
+			lt.assertValue(values[i])
+		} else {
+			t.Errorf("Received too many tokens: %v\n", tok)
+		}
 	}
 }
 
@@ -84,6 +88,12 @@ func TestLexerBasic(t *testing.T) {
 			"{%", "endif", "%}", " ", "{%",
 			"endmacro", "%}", "",
 		},
+		t,
+	)
+	testLexer(
+		`<html>{# ignore {% tags %} in comments ##}</html>`,
+		[]tokenType{tokenText, tokenText, tokenEOF},
+		[]string{"<html>", "</html>", ""},
 		t,
 	)
 }

@@ -9,8 +9,8 @@ type node interface {
 	Render(context) (string, error)
 }
 
-// default render buffer for the root node set to 128K
-const defaultBufferSize = 1024 * 128
+// default render buffer for the root node
+const defaultBufferSize = 1024 * 32
 
 // root AST node
 type listNode struct {

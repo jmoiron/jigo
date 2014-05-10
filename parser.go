@@ -8,8 +8,7 @@ import (
 // the grammar for jinja is fairly complex because it not only includes python
 // literals like strings, lists, tuples, and dicts, some of which are dynamically
 // typed *and* mutable, but it also has support for lots of python expressions
-// like basic as well as python expressions like arithmetic exprs, list comps,
-// exponentiation, unpacking, etc.
+// like arithmetic exprs, list comps, exponentiation, unpacking, etc.
 //
 // jinja2 can get literals safely and for free with python's `ast.literal_eval`
 // but we have no such luck, and it could fall back on 'eval' for expression
@@ -29,11 +28,11 @@ import (
 //       at rendering time, and may be much slower than container literals
 //       which contain only constants.
 
-// grammar:
+// the value-expr grammar:
 //		number = [0-9]+ | [0-9]+ . [0-9]+
 //		word = [a-zA-Z] [a-zA-Z0-9]+
 //		binop = <|<=|>|>=|!=|==
-//		boolbinop = or|and
+//		boolbinop = or|and|is
 // 		boolunary = not
 //		filter = |
 //		string = " .* "
@@ -44,9 +43,20 @@ import (
 //		paramexpr = ( expr[, expr...] )
 //		funcexpr = word paramexpr
 //		filterexpr = "|" word [paramexpr]
-//		varexpr = variable [filterexpr]
+//		varexpr = atom [filterexpr]
 //		boolexpr = expr [boolbinop expr...] | boolunary expr
 //		expr = varexpr | boolexpr | funcexpr [binop expr...]
+//
+// extended grammar (tags):
+// 		ifexpr = "if" boolexpr
+//		elifexpr = "elif" boolexpr
+//		endifexpr = "endif"
+//		forexpr = "for" word "in" varexpr
+//		endforexpr = "endfor"
+//      blockexpr = "block" word
+//      endblockexpr = "endblock"
+//		rawexpr = "raw"
+//		endrawexpr = "endraw"
 
 type context map[string]interface{}
 

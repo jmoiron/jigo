@@ -8,11 +8,13 @@ type tokenTest struct {
 }
 
 var (
-	ttCommentBegin = tokenTest{tokenCommentBegin, "{#"}
-	ttCommentEnd   = tokenTest{tokenCommentEnd, "#}"}
-	ttBlockBegin   = tokenTest{tokenBlockBegin, "{%"}
-	ttBlockEnd     = tokenTest{tokenBlockEnd, "%}"}
-	ttEOF          = tokenTest{tokenEOF, ""}
+	ttCommentBegin  = tokenTest{tokenCommentBegin, "{#"}
+	ttCommentEnd    = tokenTest{tokenCommentEnd, "#}"}
+	ttBlockBegin    = tokenTest{tokenBlockBegin, "{%"}
+	ttBlockEnd      = tokenTest{tokenBlockEnd, "%}"}
+	ttVariableBegin = tokenTest{tokenVariableBegin, "{{"}
+	ttVariableEnd   = tokenTest{tokenVariableEnd, "}}"}
+	ttEOF           = tokenTest{tokenEOF, ""}
 )
 
 func tokenize(l *lexer) []item {
@@ -73,6 +75,34 @@ func TestLexer(t *testing.T) {
 			{tokenText, " comment "},
 			ttCommentEnd,
 			{tokenText, "World"},
+			ttEOF,
+		},
+	)
+
+	sp := tokenTest{tokenWhitespace, " "}
+
+	tester.Test(
+		`{{ foo }}`,
+		[]tokenTest{
+			ttVariableBegin, sp,
+			{tokenName, "foo"}, sp,
+			ttVariableEnd,
+			ttEOF,
+		},
+	)
+
+	tester.Test(
+		`{{ (a - b) + c }}`,
+		[]tokenTest{
+			ttVariableBegin, sp,
+			{tokenLparen, "("},
+			{tokenName, "a"}, sp,
+			{tokenSub, "-"}, sp,
+			{tokenName, "b"},
+			{tokenRparen, ")"}, sp,
+			{tokenAdd, "+"}, sp,
+			{tokenName, "c"}, sp,
+			ttVariableEnd,
 			ttEOF,
 		},
 	)

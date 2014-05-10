@@ -50,6 +50,7 @@ const (
 	tokenDiv
 	tokenDot
 	tokenEq
+	tokenEqEq
 	tokenFloordiv
 	tokenGt
 	tokenGteq
@@ -93,6 +94,8 @@ const (
 	tokenInitial
 	tokenEOF
 	tokenError
+	// add a distinct token for bool constants
+	tokenBool
 )
 
 // stateFn represents the state of the scanner as a function that returns the next state.
@@ -216,6 +219,46 @@ func (l *lexer) emitText() {
 	}
 }
 
+// emit the left delimiter
+func (l *lexer) emitLeft() {
+	switch l.leftDelim {
+	case l.BlockStartString:
+		l.emit(tokenBlockBegin)
+	case l.VariableStartString:
+		l.emit(tokenVariableBegin)
+	}
+}
+
+// emit the right delimiter
+func (l *lexer) emitRight() {
+	switch l.rightDelim {
+	case l.BlockEndString:
+		l.emit(tokenBlockEnd)
+	case l.VariableEndString:
+		l.emit(tokenVariableEnd)
+	}
+}
+
+// atTerminator reports whether the input is at valid termination character to
+// appear after an identifier. Breaks .X.Y into two pieces.
+func (l *lexer) atTerminator() bool {
+	r := l.peek()
+	if isSpace(r) || isEndOfLine(r) {
+		return true
+	}
+	// if r is an operator...
+	switch r {
+	case eof, '.', ',', '|', ':', ')', '(', '+', '/', '~', '{', '}', '-', '%', '*', '=':
+		return true
+	}
+
+	// is the delimiter next to us?
+	if l.pos+1 < Pos(len(l.input)) && strings.HasPrefix(l.input[l.pos+1:], l.rightDelim) {
+		return true
+	}
+	return false
+}
+
 // lexText starts off the lexing, and is used as a passthrough for all non-jigo
 // syntax areas of the template.
 func lexText(l *lexer) stateFn {
@@ -227,13 +270,17 @@ func lexText(l *lexer) stateFn {
 		case l.BlockStartString[0]:
 			if strings.HasPrefix(l.input[l.pos:], l.BlockStartString) {
 				l.emitText()
+				l.leftDelim = l.BlockStartString
+				l.rightDelim = l.BlockEndString
 				return lexBlock
 			}
 			fallthrough
 		case l.VariableStartString[0]:
 			if strings.HasPrefix(l.input[l.pos:], l.VariableStartString) {
 				l.emitText()
-				return lexVariable
+				l.leftDelim = l.VariableStartString
+				l.rightDelim = l.VariableEndString
+				return lexBlock
 			}
 			fallthrough
 		case l.CommentStartString[0]:
@@ -255,11 +302,109 @@ func lexText(l *lexer) stateFn {
 }
 
 func lexBlock(l *lexer) stateFn {
+	l.pos += Pos(len(l.leftDelim))
+	l.emitLeft()
+	return lexInsideBlock
+
 	return lexText
 }
 
-func lexVariable(l *lexer) stateFn {
-	return lexText
+func lexInsideBlock(l *lexer) stateFn {
+	for {
+		if l.pos == Pos(len(l.input)) {
+			return nil
+		}
+		if strings.HasPrefix(l.input[l.pos:], l.rightDelim) {
+			l.pos += Pos(len(l.rightDelim))
+			l.emitRight()
+			return lexText
+		}
+		// take the next rune and see what it is
+		r := l.next()
+
+		switch {
+		case isSpace(r):
+			return lexSpace
+		case isAlphaNumeric(r):
+			return lexIdentifier
+		}
+
+		switch r {
+		case '+':
+			l.emit(tokenAdd)
+		case '~':
+			l.emit(tokenTilde)
+		case '/':
+			if l.accept("/") {
+				l.emit(tokenFloordiv)
+			} else {
+				l.emit(tokenDiv)
+			}
+		case '<':
+			if l.accept("=") {
+				l.emit(tokenLteq)
+			} else {
+				l.emit(tokenLt)
+			}
+		case '>':
+			if l.accept("=") {
+				l.emit(tokenGteq)
+			} else {
+				l.emit(tokenGt)
+			}
+		case '*':
+			if l.accept("*") {
+				l.emit(tokenPow)
+			} else {
+				l.emit(tokenMul)
+			}
+		// TODO: ballancing
+		case '(':
+			l.emit(tokenLparen)
+		case '{':
+			l.emit(tokenLbrace)
+		case '[':
+			l.emit(tokenLbracket)
+		case ')':
+			l.emit(tokenRparen)
+		case '}':
+			l.emit(tokenRbrace)
+		case ']':
+			l.emit(tokenRbracket)
+		case '-':
+			l.emit(tokenSub)
+		}
+	}
+}
+
+func lexSpace(l *lexer) stateFn {
+	for isSpace(l.peek()) {
+		l.next()
+	}
+	l.emit(tokenWhitespace)
+	return lexInsideBlock
+}
+
+func lexIdentifier(l *lexer) stateFn {
+	for {
+		switch r := l.next(); {
+		case isAlphaNumeric(r):
+			// absorb.
+		default:
+			l.backup()
+			word := l.input[l.start:l.pos]
+			if !l.atTerminator() {
+				return l.errorf("bad character %#U", r)
+			}
+			switch word {
+			case "true", "false":
+				l.emit(tokenBool)
+			default:
+				l.emit(tokenName)
+			}
+			return lexInsideBlock
+		}
+	}
 }
 
 func lexComment(l *lexer) stateFn {

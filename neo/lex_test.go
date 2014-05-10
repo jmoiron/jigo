@@ -106,4 +106,27 @@ func TestLexer(t *testing.T) {
 			ttEOF,
 		},
 	)
+
+	tester.Test(
+		`Hello.  {% if true %}World{% else %}Nobody{% endif %}`,
+		[]tokenTest{
+			{tokenText, "Hello.  "},
+			ttBlockBegin, sp,
+			{tokenName, "if"}, sp,
+			{tokenBool, "true"}, sp, ttBlockEnd,
+			{tokenText, "World"}, ttBlockBegin, sp,
+			{tokenName, "else"}, sp, ttBlockEnd,
+			{tokenText, "Nobody"}, ttBlockBegin, sp,
+			{tokenName, "endif"}, sp, ttBlockEnd, ttEOF,
+		},
+	)
+
+	tester.Test(
+		`<html>{# ignore {% tags %} in comments ##}</html>`,
+		[]tokenTest{
+			{tokenText, "<html>"}, ttCommentBegin,
+			{tokenText, " ignore {% tags %} in comments #"}, ttCommentEnd,
+			{tokenText, "</html>"}, ttEOF,
+		},
+	)
 }

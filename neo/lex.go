@@ -206,27 +206,74 @@ func (l *lexer) run() {
 	for l.state = lexText; l.state != nil; {
 		l.state = l.state(l)
 	}
+	close(l.items)
 }
 
-func lexText(l *lexer) stateFn {
-	for {
-		if strings.HasPrefix(l.input[l.pos:], l.leftDelim) {
-			if l.pos > l.start {
-				l.emit(tokenText)
-			}
-			return lexText // lexLeftDelim
-		}
-		if l.next() == eof {
-			break
-		}
-	}
-	// Correctly reached EOF.
+// conditionally emit the current text token
+func (l *lexer) emitText() {
 	if l.pos > l.start {
 		l.emit(tokenText)
 	}
+}
+
+// lexText starts off the lexing, and is used as a passthrough for all non-jigo
+// syntax areas of the template.
+func lexText(l *lexer) stateFn {
+	for {
+		if l.pos == Pos(len(l.input)) {
+			break
+		}
+		switch l.input[l.pos] {
+		case l.BlockStartString[0]:
+			if strings.HasPrefix(l.input[l.pos:], l.BlockStartString) {
+				l.emitText()
+				return lexBlock
+			}
+			fallthrough
+		case l.VariableStartString[0]:
+			if strings.HasPrefix(l.input[l.pos:], l.VariableStartString) {
+				l.emitText()
+				return lexVariable
+			}
+			fallthrough
+		case l.CommentStartString[0]:
+			if strings.HasPrefix(l.input[l.pos:], l.CommentStartString) {
+				l.emitText()
+				return lexComment
+			}
+			fallthrough
+		default:
+			if l.next() == eof {
+				break
+			}
+		}
+	}
+	// Correctly reached EOF.
+	l.emitText()
 	l.emit(tokenEOF)
 	return nil
+}
 
+func lexBlock(l *lexer) stateFn {
+	return lexText
+}
+
+func lexVariable(l *lexer) stateFn {
+	return lexText
+}
+
+func lexComment(l *lexer) stateFn {
+	l.pos += Pos(len(l.CommentStartString))
+	l.emit(tokenCommentBegin)
+	i := strings.Index(l.input[l.pos:], l.CommentEndString)
+	if i < 0 {
+		return l.errorf("unclosed comment")
+	}
+	l.pos += Pos(i)
+	l.emitText()
+	l.pos += Pos(len(l.CommentEndString))
+	l.emit(tokenCommentEnd)
+	return lexText
 }
 
 // -- utils --

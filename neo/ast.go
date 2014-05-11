@@ -21,6 +21,7 @@ type Node interface {
 
 const (
 	NodeList NodeType = iota
+	NodeText
 )
 
 // ListNode holds a sequence of nodes.

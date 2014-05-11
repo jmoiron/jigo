@@ -101,6 +101,7 @@ func (e *Environment) lex(source, name, filename string) *lexer {
 		leftDelim:  cfg.BlockStartString,
 		rightDelim: cfg.BlockEndString,
 		items:      make(chan item),
+		delimStack: make([]rune, 0, 10),
 	}
 	go l.run()
 	return l

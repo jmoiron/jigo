@@ -126,6 +126,7 @@ type lexer struct {
 	width      Pos       // width of last rune read from input
 	lastPos    Pos       // position of most recent item returned by nextItem
 	items      chan item // channel of scanned items
+	delimStack []rune
 	// we will need a more sophisticated delim stack to parse jigo
 	//parenDepth int       // nesting depth of ( ) exprs
 }
@@ -149,6 +150,32 @@ func (l *lexer) peek() rune {
 	r := l.next()
 	l.backup()
 	return r
+}
+
+// maintain the delim stack if expected delimiter is r.  pop the
+// stack if it's right, return false if it's wrong
+func (l *lexer) expectDelim(r rune) bool {
+	if len(l.delimStack) == 0 {
+		l.errorf("Imbalanced delimiters, was not expecting %c", r)
+		return false
+	}
+	expect := l.delimStack[len(l.delimStack)-1]
+	if expect != r {
+		l.errorf("Imbalanced delimiters, expected %c, got %c", expect, r)
+		return false
+	}
+
+	l.delimStack = l.delimStack[:len(l.delimStack)-1]
+	return true
+}
+
+// return whether or not we are expecting r as the next delimiter
+func (l *lexer) shouldExpectDelim(r rune) bool {
+	if len(l.delimStack) == 0 {
+		return false
+	}
+	expect := l.delimStack[len(l.delimStack)-1]
+	return expect == r
 }
 
 // backup steps back one rune. Can only be called once per call of next.
@@ -314,7 +341,10 @@ func lexInsideBlock(l *lexer) stateFn {
 		if l.pos == Pos(len(l.input)) {
 			return nil
 		}
-		if strings.HasPrefix(l.input[l.pos:], l.rightDelim) {
+		// if this is the rightDelim, but we are expecting the next char as a delimiter
+		// then skip marking this as rightDelim.  This allows us to have, eg, '}}' as
+		// part of a literal inside a var block.
+		if strings.HasPrefix(l.input[l.pos:], l.rightDelim) && !l.shouldExpectDelim(l.peek()) {
 			l.pos += Pos(len(l.rightDelim))
 			l.emitRight()
 			return lexText
@@ -330,10 +360,18 @@ func lexInsideBlock(l *lexer) stateFn {
 		}
 
 		switch r {
+		case ',':
+			l.emit(tokenComma)
+		case '|':
+			l.emit(tokenPipe)
 		case '+':
 			l.emit(tokenAdd)
+		case '-':
+			l.emit(tokenSub)
 		case '~':
 			l.emit(tokenTilde)
+		case ':':
+			l.emit(tokenColon)
 		case '/':
 			if l.accept("/") {
 				l.emit(tokenFloordiv)
@@ -358,21 +396,36 @@ func lexInsideBlock(l *lexer) stateFn {
 			} else {
 				l.emit(tokenMul)
 			}
-		// TODO: ballancing
+		case '=':
+			if l.accept("=") {
+				l.emit(tokenEqEq)
+			} else {
+				l.emit(tokenEq)
+			}
 		case '(':
 			l.emit(tokenLparen)
+			l.delimStack = append(l.delimStack, ')')
 		case '{':
 			l.emit(tokenLbrace)
+			l.delimStack = append(l.delimStack, '}')
 		case '[':
 			l.emit(tokenLbracket)
+			l.delimStack = append(l.delimStack, ']')
 		case ')':
+			if !l.expectDelim(r) {
+				return nil
+			}
 			l.emit(tokenRparen)
 		case '}':
+			if !l.expectDelim(r) {
+				return nil
+			}
 			l.emit(tokenRbrace)
 		case ']':
+			if !l.expectDelim(r) {
+				return nil
+			}
 			l.emit(tokenRbracket)
-		case '-':
-			l.emit(tokenSub)
 		}
 	}
 }

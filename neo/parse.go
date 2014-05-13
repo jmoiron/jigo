@@ -2,6 +2,7 @@ package jigo
 
 import (
 	"fmt"
+	"runtime"
 	"strings"
 )
 
@@ -12,14 +13,27 @@ type Tree struct {
 	Root      *ListNode // top-level root of the tree.
 	text      string    // text parsed to create the template (or its parent)
 	// Parsing only; cleared after parse.
-	funcs []map[string]interface{}
-	lex   *lexer
+	// funcs []map[string]interface{}
+	lex *lexer
 	// FIXME: the peek max is based on the way that the grammar works,
 	// but I don't know enough about the expression grammar i've loosely
 	// described to know if 3 is sufficient.
 	token     [3]item // three-token lookahead for parser.
 	peekCount int
-	vars      []string // variables defined at the moment.
+	// vars      []string // variables defined at the moment.
+}
+
+// Copy returns a copy of the Tree. Any parsing state is discarded.
+func (t *Tree) Copy() *Tree {
+	if t == nil {
+		return nil
+	}
+	return &Tree{
+		Name:      t.Name,
+		ParseName: t.ParseName,
+		Root:      t.Root.CopyList(),
+		text:      t.text,
+	}
 }
 
 // next returns the next token.
@@ -88,10 +102,9 @@ func (t *Tree) peekNonSpace() (token item) {
 // Parsing.
 
 // New allocates a new parse tree with the given name.
-func New(name string, funcs ...map[string]interface{}) *Tree {
+func newParser(name string) *Tree {
 	return &Tree{
-		Name:  name,
-		funcs: funcs,
+		Name: name,
 	}
 }
 
@@ -119,4 +132,75 @@ func (t *Tree) errorf(format string, args ...interface{}) {
 	t.Root = nil
 	format = fmt.Sprintf("template: %s:%d: %s", t.ParseName, t.lex.lineNumber(), format)
 	panic(fmt.Errorf(format, args...))
+}
+
+// recover is the handler that turns panics into returns from the top level of Parse.
+func (t *Tree) recover(errp *error) {
+	e := recover()
+	if e != nil {
+		if _, ok := e.(runtime.Error); ok {
+			panic(e)
+		}
+		if t != nil {
+			t.stopParse()
+		}
+		*errp = e.(error)
+	}
+	return
+}
+
+// startParse initializes the parser, using the lexer.
+func (t *Tree) startParse(lex *lexer) {
+	t.Root = nil
+	t.lex = lex
+}
+
+// stopParse terminates parsing.
+func (t *Tree) stopParse() {
+	t.lex = nil
+}
+
+// Parse parses the template given the lexer.
+func (t *Tree) Parse(lex *lexer) (tree *Tree, err error) {
+	defer t.recover(&err)
+	t.ParseName = t.Name
+	t.startParse(lex)
+	t.text = lex.input
+	t.parse()
+	t.stopParse()
+	return t, nil
+}
+
+// -- parsing --
+
+// parse is the top-level parser for a template, essentially the same
+// as itemList except it also parses {{define}} actions.
+// It runs to EOF.
+func (t *Tree) parse() (next Node) {
+	t.Root = newList(t.peek().pos)
+	for t.peek().typ != tokenEOF {
+		if t.peek().typ == tokenBlockBegin {
+			/*
+				delim := t.next()
+				if t.nextNonSpace().typ == itemDefine {
+					newT := New("definition") // name will be updated once we know it.
+					newT.text = t.text
+					newT.ParseName = t.ParseName
+					newT.startParse(t.funcs, t.lex)
+					newT.parseDefinition(treeSet)
+					continue
+
+				}
+				t.backup2(delim)
+			*/
+		}
+		/*
+			n := t.textOrAction()
+			if n.Type() == nodeEnd {
+				t.errorf("unexpected %s", n)
+			}
+			t.Root.append(n)
+		*/
+	}
+	return nil
 }

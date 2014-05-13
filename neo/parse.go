@@ -14,7 +14,9 @@ type Tree struct {
 	// Parsing only; cleared after parse.
 	funcs []map[string]interface{}
 	lex   *lexer
-	// FIXME: how much do we need?
+	// FIXME: the peek max is based on the way that the grammar works,
+	// but I don't know enough about the expression grammar i've loosely
+	// described to know if 3 is sufficient.
 	token     [3]item // three-token lookahead for parser.
 	peekCount int
 	vars      []string // variables defined at the moment.

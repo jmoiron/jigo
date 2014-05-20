@@ -24,6 +24,7 @@ type Node interface {
 const (
 	NodeList NodeType = iota
 	NodeText
+	NodeVar
 )
 
 // ListNode holds a sequence of nodes.
@@ -81,4 +82,23 @@ func (t *TextNode) String() string {
 
 func (t *TextNode) Copy() Node {
 	return &TextNode{NodeType: NodeText, Text: append([]byte{}, t.Text...)}
+}
+
+// VarNode represents a var print expr, ie {{ ... }}.
+type VarNode struct {
+	NodeType
+	Pos
+	Expr Node // The expression node within this one
+}
+
+func newVar(pos Pos) *VarNode {
+	return &VarNode{NodeType: NodeVar, Pos: pos}
+}
+
+func (v *VarNode) String() string {
+	return fmt.Sprintf("{{ %s }}", v.Expr)
+}
+
+func (v *VarNode) Copy() Node {
+	return &VarNode{NodeType: NodeVar, Expr: v.Expr.Copy()}
 }

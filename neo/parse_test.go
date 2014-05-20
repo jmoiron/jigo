@@ -1,13 +1,23 @@
 package jigo
 
-import (
-	"fmt"
-	"testing"
-)
+import "testing"
+
+func (n NodeType) String() string {
+	switch n {
+	case NodeList:
+		return "NodeList"
+	case NodeText:
+		return "NodeText"
+	case NodeVar:
+		return "NodeVar"
+	default:
+		return "Unknown Type"
+	}
+}
 
 type parseTest struct {
-	isError bool
-	output  string
+	isError   bool
+	nodeTypes []NodeType
 }
 
 type parsetest struct {
@@ -42,16 +52,34 @@ func (p *parsetest) Test(input string, test parseTest) {
 		t.Errorf("Unexpected error: %s\n", err)
 	}
 
-	fmt.Printf("Tree: %#v\n", tree.Root)
-	fmt.Printf("Tree: %s\n", tree.Root)
+	if len(test.nodeTypes) != len(tree.Root.Nodes) {
+		t.Errorf("Wrong number of nodes in %s\n", tree.Root)
+		t.Fatalf("Was expecting %d top level nodes, found %d", len(tree.Root.Nodes), len(test.nodeTypes))
+	}
+
+	for i, nt := range test.nodeTypes {
+		rnt := tree.Root.Nodes[i].Type()
+		if nt != rnt {
+			t.Errorf("Type mismatch: expecting %dth to be %s, but was %s", i, nt, rnt)
+		}
+	}
 }
 
 func TestParser(t *testing.T) {
 	tester := parsetest{t}
-	fmt.Println(tester)
+
+	tester.Test(
+		`Hello, World`,
+		parseTest{nodeTypes: []NodeType{NodeText}},
+	)
 
 	tester.Test(
 		`Hello, {# comment #}World`,
-		parseTest{isError: false},
+		parseTest{nodeTypes: []NodeType{NodeText, NodeText}},
+	)
+
+	tester.Test(
+		`Hello {{ name }}`,
+		parseTest{nodeTypes: []NodeType{NodeText, NodeVar}},
 	)
 }

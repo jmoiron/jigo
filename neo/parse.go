@@ -99,6 +99,16 @@ func (t *Tree) peekNonSpace() (token item) {
 	return token
 }
 
+// expect peeks at the next non-space token, and if it is not itemType
+// fails with an error.  If it is, that item is returned and consumed.
+func (t *Tree) expect(i itemType) (token item) {
+	token = t.peekNonSpace()
+	if token.typ != i {
+		t.unexpected(token, fmt.Sprint(i))
+	}
+	return t.nextNonSpace()
+}
+
 // Parsing.
 
 // New allocates a new parse tree with the given name.
@@ -195,13 +205,10 @@ func (t *Tree) parse() (next Node) {
 			// the start of a {% .. %} tag block.
 			fmt.Println("Got BlockBegin")
 			continue
-		//	delim := t.next()
 
 		case tokenVariableBegin:
 			// the start of a {{ .. }} variable print block.
-			fmt.Println("Got VariableBegin")
-			continue
-		//	delim := t.next()
+			n = t.parseVar()
 
 		case tokenCommentBegin:
 			t.skipComment()
@@ -247,14 +254,11 @@ func (t *Tree) parseText() Node {
 	return nil
 }
 
-// Skips over a comment;  commends are not represented in the final AST.
+// Skips over a comment;  comments are not represented in the final AST.
 func (t *Tree) skipComment() {
-	token := t.next()
-	if token.typ != tokenCommentBegin {
-		t.unexpected(token, "begin comment")
-	}
+	t.expect(tokenCommentBegin)
 	for {
-		token = t.nextNonSpace()
+		token := t.nextNonSpace()
 		switch token.typ {
 		case tokenText:
 			continue
@@ -264,4 +268,57 @@ func (t *Tree) skipComment() {
 		}
 		break
 	}
+}
+
+// Parse a variable print expression, from tokenVariableBegin to tokenVariableEnd
+func (t *Tree) parseVar() Node {
+	token := t.expect(tokenVariableBegin)
+	n := newVar(token.pos)
+	exprList := newList(token.pos)
+	for {
+		token := t.peekNonSpace()
+		switch token.typ {
+		case tokenName:
+			exprList.append(t.varExpr())
+			continue
+		case tokenLparen:
+			exprList.append(t.parenExpr())
+			continue
+		case tokenLbrace:
+			exprList.append(t.mapExpr())
+			continue
+		case tokenLbracket:
+			exprList.append(t.listExpr())
+			continue
+		case tokenGt, tokenGteq, tokenLt, tokenLteq, tokenEqEq:
+			t.unexpected(token, "unexpected boolean operator in var block")
+		case tokenVariableEnd:
+			t.nextNonSpace()
+		default:
+			t.unexpected(token, "end variable")
+		}
+		break
+	}
+	n.Expr = exprList
+	return n
+}
+
+func (t *Tree) varExpr() Node {
+	t.next()
+	return nil
+}
+
+func (t *Tree) parenExpr() Node {
+	t.next()
+	return nil
+}
+
+func (t *Tree) mapExpr() Node {
+	t.next()
+	return nil
+}
+
+func (t *Tree) listExpr() Node {
+	t.next()
+	return nil
 }

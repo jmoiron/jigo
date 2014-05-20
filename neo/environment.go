@@ -106,3 +106,10 @@ func (e *Environment) lex(source, name, filename string) *lexer {
 	go l.run()
 	return l
 }
+
+// parse completely parses template source, returning the Node errors.
+func (e *Environment) parse(source, name, filename string) (*Tree, error) {
+	lex := e.lex(source, name, filename)
+	t := newTree(name)
+	return t.Parse(lex)
+}

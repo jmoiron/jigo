@@ -102,7 +102,7 @@ func (t *Tree) peekNonSpace() (token item) {
 // Parsing.
 
 // New allocates a new parse tree with the given name.
-func newParser(name string) *Tree {
+func newTree(name string) *Tree {
 	return &Tree{
 		Name: name,
 	}
@@ -149,6 +149,11 @@ func (t *Tree) recover(errp *error) {
 	return
 }
 
+// unexpected complains about the token and terminates processing.
+func (t *Tree) unexpected(token item, context string) {
+	t.errorf("unexpected %s in %s", token, context)
+}
+
 // startParse initializes the parser, using the lexer.
 func (t *Tree) startParse(lex *lexer) {
 	t.Root = nil
@@ -173,28 +178,55 @@ func (t *Tree) Parse(lex *lexer) (tree *Tree, err error) {
 
 // -- parsing --
 
+// Here is where the code will depart quite a bit from text/template.
+// Starting at parse(), we must take care of all sorts of different
+// block types and tags, and we also have no concept of embedding
+// multiple named templates within one file/[]byte/string.
+
 // parse is the top-level parser for a template, essentially the same
 // as itemList except it also parses {{define}} actions.
 // It runs to EOF.
 func (t *Tree) parse() (next Node) {
 	t.Root = newList(t.peek().pos)
 	for t.peek().typ != tokenEOF {
-		if t.peek().typ == tokenBlockBegin {
-			/*
-				delim := t.next()
-				if t.nextNonSpace().typ == itemDefine {
-					newT := New("definition") // name will be updated once we know it.
-					newT.text = t.text
-					newT.ParseName = t.ParseName
-					newT.startParse(t.funcs, t.lex)
-					newT.parseDefinition(treeSet)
-					continue
+		var n Node
+		switch t.peek().typ {
+		case tokenBlockBegin:
+			// the start of a {% .. %} tag block.
+			fmt.Println("Got BlockBegin")
+			continue
+		//	delim := t.next()
 
-				}
-				t.backup2(delim)
-			*/
+		case tokenVariableBegin:
+			// the start of a {{ .. }} variable print block.
+			fmt.Println("Got VariableBegin")
+			continue
+		//	delim := t.next()
+
+		case tokenCommentBegin:
+			t.skipComment()
+			continue
+
+		case tokenText:
+			// this token is text, lets save it in a text node and continue
+			n = t.parseText()
 		}
+		t.Root.append(n)
+
 		/*
+			delim := t.next()
+			if t.nextNonSpace().typ == itemDefine {
+				newT := New("definition") // name will be updated once we know it.
+				newT.text = t.text
+				newT.ParseName = t.ParseName
+				newT.startParse(t.funcs, t.lex)
+				newT.parseDefinition(treeSet)
+				continue
+
+			}
+			t.backup2(delim)
+
+
 			n := t.textOrAction()
 			if n.Type() == nodeEnd {
 				t.errorf("unexpected %s", n)
@@ -203,4 +235,33 @@ func (t *Tree) parse() (next Node) {
 		*/
 	}
 	return nil
+}
+
+func (t *Tree) parseText() Node {
+	switch token := t.next(); token.typ {
+	case tokenText:
+		return newText(token.pos, token.val)
+	default:
+		t.unexpected(token, "input")
+	}
+	return nil
+}
+
+// Skips over a comment;  commends are not represented in the final AST.
+func (t *Tree) skipComment() {
+	token := t.next()
+	if token.typ != tokenCommentBegin {
+		t.unexpected(token, "begin comment")
+	}
+	for {
+		token = t.nextNonSpace()
+		switch token.typ {
+		case tokenText:
+			continue
+		case tokenCommentEnd:
+		default:
+			t.unexpected(token, "end commend")
+		}
+		break
+	}
 }

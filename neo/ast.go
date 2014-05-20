@@ -5,6 +5,8 @@ import (
 	"fmt"
 )
 
+var textFormat = "%s" // Changed to "%q" in tests for better error messages.
+
 type NodeType int
 
 func (t NodeType) Type() NodeType {
@@ -60,4 +62,23 @@ func (l *ListNode) CopyList() *ListNode {
 
 func (l *ListNode) Copy() Node {
 	return l.CopyList()
+}
+
+// TextNode holds plain text.
+type TextNode struct {
+	NodeType
+	Pos
+	Text []byte // The text; may span newlines.
+}
+
+func newText(pos Pos, text string) *TextNode {
+	return &TextNode{NodeType: NodeText, Pos: pos, Text: []byte(text)}
+}
+
+func (t *TextNode) String() string {
+	return fmt.Sprintf(textFormat, t.Text)
+}
+
+func (t *TextNode) Copy() Node {
+	return &TextNode{NodeType: NodeText, Text: append([]byte{}, t.Text...)}
 }

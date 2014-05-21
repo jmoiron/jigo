@@ -6,6 +6,95 @@ import (
 	"strings"
 )
 
+// Important to jigo, as to most languages, is the idea of an expression.
+// Here is the ebnf grammar for jigo expressions, which are actually largely
+// based off of the ebnf grammar for Go.
+
+/*
+NOTE: Jigo's only knowledge of custom types is whether or not the semantic
+operators provide can operate on them.  These decisions obviously must be
+made at runtime.  Its internally defined types are any type which for which
+you can define a literal:
+
+Type                Go Type
+string              string
+int                 int64
+float               float64
+list                []interface{}
+map                 map[interface{}]interface{}
+
+Obviously, wherever there is interface{}, you can use expressions which
+evaluate to Go types.
+
+
+Operand    = Literal | identifier | MethodExpr | "(" Expression ")" .
+Literal    = BasicLit | MapLiteral | ListLiteral .
+BasicLit   = int_lit | float_lit  string_lit .
+OperandName = identifier
+
+
+MapLiteral     = "{" [ MapElementList [ "," ] ] "}"
+ListLiteral    = "[" [ ElementList [ "," ] ] "]"
+MapElementList = MapElement { "," MapElement }
+MapElement     = Key ":" Element
+ElementList    = Element { "," Element }
+Element        = Expression | LiteralValue
+Key            = Literal | Operand
+
+PrimaryExpr =
+    Operand |
+    PrimaryExpr Selector |
+    PrimaryExpr Index |
+    PrimaryExpr Slice |
+    PrimaryExpr TypeAssertion |
+    PrimaryExpr Call .
+
+
+// NOTE: Variadic functions, type assertions, and 3-part slices are removed from the
+// Go grammar to reduce initial complexity.  We are not quite implementing a statically
+// typed templating language, just one that has "sane" literals and sensible evaluation
+// of expected programming language expressions.
+
+Selector       = "." identifier .
+Index          = "[" Expression "]" .
+Slice          = "[" ( [ Expression ] ":" [ Expression ] ) "]" .
+Call           = "(" [ ArgumentList [ "," ] ] ")" .
+ArgumentList   = ExpressionList
+ExpressionList = Expression { "," Expression }
+
+
+Expression = UnaryExpr | Expression binary_op UnaryExpr .
+UnaryExpr  = PrimaryExpr | unary_op UnaryExpr .
+
+binary_op  = "||" | "&&" | rel_op | add_op | mul_op .
+rel_op     = "==" | "!=" | "<" | "<=" | ">" | ">=" .
+add_op     = "+" | "-" | "^" .
+mul_op     = "*" | "/" | "%" | "//" .
+unary_op   = "+" | "-" | "!" | "*" .
+
+NOTE: Because bitwise or operator | is required as the filter operator,
+the other bitwise &, &^, ^, << and >> and unary ^ operators have been
+removed as their usefulness in templates seems dubious.
+
+In addition, divmod (//) has been added, and the challen operator `<-`
+has been removed.
+
+Precedence    Operator
+    5             *  /  //  %
+    4             +  -
+    3             ==  !=  <  <=  >  >=
+    2             &&
+    1             ||
+
++    sum                    integers, floats, strings
+-    difference             integers, floats
+*    product                integers, floats
+/    quotient               integers, floats
+//   divmod                 integers, floats
+%    remainder              integers
+
+*/
+
 // Tree is the representation of a single parsed template.
 type Tree struct {
 	Name      string    // name of the template represented by the tree.
@@ -289,6 +378,12 @@ func (t *Tree) parseVar() Node {
 			continue
 		case tokenLbracket:
 			exprList.append(t.listExpr())
+			continue
+		case tokenString:
+			t.next()
+			continue
+		case tokenFloat:
+			t.next()
 			continue
 		case tokenGt, tokenGteq, tokenLt, tokenLteq, tokenEqEq:
 			t.unexpected(token, "unexpected boolean operator in var block")

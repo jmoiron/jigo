@@ -43,9 +43,7 @@ func newList(pos Pos) *ListNode {
 	return &ListNode{NodeType: NodeList, Pos: pos}
 }
 
-func (l *ListNode) append(n Node) {
-	l.Nodes = append(l.Nodes, n)
-}
+func (l *ListNode) append(n Node) { l.Nodes = append(l.Nodes, n) }
 
 func (l *ListNode) String() string {
 	b := new(bytes.Buffer)
@@ -66,9 +64,7 @@ func (l *ListNode) CopyList() *ListNode {
 	return n
 }
 
-func (l *ListNode) Copy() Node {
-	return l.CopyList()
-}
+func (l *ListNode) Copy() Node { return l.CopyList() }
 
 // TextNode holds plain text.
 type TextNode struct {
@@ -81,13 +77,8 @@ func newText(pos Pos, text string) *TextNode {
 	return &TextNode{NodeType: NodeText, Pos: pos, Text: []byte(text)}
 }
 
-func (t *TextNode) String() string {
-	return fmt.Sprintf(textFormat, t.Text)
-}
-
-func (t *TextNode) Copy() Node {
-	return &TextNode{NodeType: NodeText, Text: append([]byte{}, t.Text...)}
-}
+func (t *TextNode) String() string { return fmt.Sprintf(textFormat, t.Text) }
+func (t *TextNode) Copy() Node     { return &TextNode{NodeText, t.Pos, append([]byte{}, t.Text...)} }
 
 // VarNode represents a var print expr, ie {{ ... }}.
 // It is represented as a sequence of expressions.
@@ -114,14 +105,8 @@ type LookupNode struct {
 func newLookup(pos Pos, name string) *LookupNode {
 	return &LookupNode{NodeType: NodeLookup, Pos: pos, Name: name}
 }
-
-func (l *LookupNode) String() string {
-	return l.Name
-}
-
-func (l *LookupNode) Copy() Node {
-	return newLookup(l.Pos, l.Name)
-}
+func (l *LookupNode) String() string { return l.Name }
+func (l *LookupNode) Copy() Node     { return newLookup(l.Pos, l.Name) }
 
 type StringNode struct {
 	NodeType

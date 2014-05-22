@@ -8,7 +8,9 @@ import (
 
 // Important to jigo, as to most languages, is the idea of an expression.
 // Here is the ebnf grammar for jigo expressions, which are actually largely
-// based off of the ebnf grammar for Go.
+// based off of the ebnf grammar for Go.  The way that these manifest
+// themselves in a template is quite different, since they must be evaluated
+// in potentially different contexts at runtime.
 
 /*
 NOTE: Jigo's only knowledge of custom types is whether or not the semantic
@@ -26,11 +28,13 @@ map                 map[interface{}]interface{}
 Obviously, wherever there is interface{}, you can use expressions which
 evaluate to Go types.
 
+NOTE: Operands form the basis for all combinatorial expressions.  They can
+be parenthetical expressions themselves.  Lower-cased things like int_lit
+and identifier are actually defined at the lexer.
 
 Operand    = Literal | identifier | MethodExpr | "(" Expression ")" .
 Literal    = BasicLit | MapLiteral | ListLiteral .
 BasicLit   = int_lit | float_lit  string_lit .
-OperandName = identifier
 
 
 MapLiteral     = "{" [ MapElementList [ "," ] ] "}"
@@ -38,10 +42,10 @@ ListLiteral    = "[" [ ElementList [ "," ] ] "]"
 MapElementList = MapElement { "," MapElement }
 MapElement     = Key ":" Element
 ElementList    = Element { "," Element }
-Element        = Expression | LiteralValue
+Element        = Expression | Operand
 Key            = Literal | Operand
 
-PrimaryExpr =
+PrimaryExpr =
     Operand |
     PrimaryExpr Selector |
     PrimaryExpr Index |
@@ -76,7 +80,7 @@ NOTE: Because bitwise or operator | is required as the filter operator,
 the other bitwise &, &^, ^, << and >> and unary ^ operators have been
 removed as their usefulness in templates seems dubious.
 
-In addition, divmod (//) has been added, and the challen operator `<-`
+In addition, divmod/floordiv (//) has been added, and the channel op `<-`
 has been removed.
 
 Precedence    Operator
@@ -360,47 +364,79 @@ func (t *Tree) skipComment() {
 }
 
 // Parse a variable print expression, from tokenVariableBegin to tokenVariableEnd
+// Contains a single expression.
 func (t *Tree) parseVar() Node {
 	token := t.expect(tokenVariableBegin)
-	n := newVar(token.pos)
-	exprList := newList(token.pos)
-	for {
-		token := t.peekNonSpace()
-		switch token.typ {
-		case tokenName:
-			exprList.append(t.varExpr())
-			continue
-		case tokenLparen:
-			exprList.append(t.parenExpr())
-			continue
-		case tokenLbrace:
-			exprList.append(t.mapExpr())
-			continue
-		case tokenLbracket:
-			exprList.append(t.listExpr())
-			continue
-		case tokenString:
-			t.next()
-			continue
-		case tokenFloat:
-			t.next()
-			continue
-		case tokenGt, tokenGteq, tokenLt, tokenLteq, tokenEqEq:
-			t.unexpected(token, "unexpected boolean operator in var block")
-		case tokenVariableEnd:
-			t.nextNonSpace()
-		default:
-			t.unexpected(token, "end variable")
+	expr := newVar(token.pos)
+	expr.Node = t.parseExpr(tokenVariableEnd)
+	t.expect(tokenVariableEnd)
+	return expr
+	/*
+			case tokenAdd, tokenSub:
+				expr.append(newAritmeticOp(token))
+			case tokenMul, tokenDiv, tokenFloordiv:
+				// how do we do this again ?
+			case tokenGt, tokenGteq, tokenLt, tokenLteq, tokenEqEq:
+				t.unexpected(token, "unexpected boolean operator in var block")
+			case tokenVariableEnd:
+				t.nextNonSpace()
+			default:
+				t.unexpected(token, "end variable")
+			}
+			break
 		}
-		break
-	}
-	n.Expr = exprList
-	return n
+		return n
+	*/
 }
 
-func (t *Tree) varExpr() Node {
-	t.next()
+// Parses an expression until it hits a terminator.  An expression one of
+// a few types of expressions, some of which can contain Expressions
+// themselves.
+func (t *Tree) parseExpr(terminator itemType) Node {
+	token := t.peekNonSpace()
+	expr := newList(token.pos)
+	for {
+		token = t.peekNonSpace()
+		switch token.typ {
+		case terminator:
+			return expr
+		case tokenName:
+			expr.append(t.lookupExpr())
+		case tokenLparen:
+			t.expect(tokenLparen)
+			expr.append(t.parseExpr(tokenRparen))
+		case tokenLbrace:
+			expr.append(t.mapExpr())
+		case tokenLbracket:
+			expr.append(t.listExpr())
+		case tokenFloat, tokenInteger, tokenString:
+			expr.append(t.literalExpr())
+		case tokenAdd, tokenSub:
+			t.next()
+		case tokenMul, tokenMod, tokenDiv, tokenFloordiv:
+			t.next()
+		default:
+			t.unexpected(token, "expression")
+		}
+	}
+	panic("required expr but got none")
+}
+
+// in this sense, a literal is a simple lexer-level literal
+func (t *Tree) literalExpr() Node {
+	token := t.nextNonSpace()
+	switch token.typ {
+	case tokenFloat, tokenInteger, tokenString:
+		return newLiteral(token.pos, token.typ, token.val)
+	default:
+		t.unexpected(token, "literal")
+	}
 	return nil
+}
+
+func (t *Tree) lookupExpr() Node {
+	name := t.nextNonSpace()
+	return newLookup(name.pos, name.val)
 }
 
 func (t *Tree) parenExpr() Node {

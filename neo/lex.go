@@ -41,6 +41,30 @@ func (i item) String() string {
 	}
 }
 
+// Return operator precedence.  If it is not an operator, returns 0
+// Precedence    Operator
+//    5             *  /  //  %
+//    4             +  -
+//    3             ==  !=  <  <=  >  >=
+//    2             &&
+//    1             ||
+func (i item) precedence() int {
+	switch i.typ {
+	case tokenMul, tokenDiv, tokenFloordiv, tokenMod:
+		return 5
+	case tokenAdd, tokenSub:
+		return 4
+	case tokenEqEq, tokenNeq, tokenLt, tokenLteq, tokenGt, tokenGteq:
+		return 3
+	case tokenAnd:
+		return 2
+	case tokenOr:
+		return 1
+	default:
+		return 0
+	}
+}
+
 // Token definitions from jinja/lexer.py
 const (
 	tokenAdd itemType = iota
@@ -59,6 +83,10 @@ const (
 	tokenLparen
 	tokenLt
 	tokenLteq
+	tokenNot
+	tokenAnd
+	tokenOr
+	tokenNeq
 	tokenMod
 	tokenMul
 	tokenNe
@@ -185,7 +213,11 @@ func (l *lexer) backup() {
 
 // emit passes an item back to the client.
 func (l *lexer) emit(t itemType) {
-	l.items <- item{t, l.start, l.input[l.start:l.pos]}
+	val := l.input[l.start:l.pos]
+	if t == tokenString {
+		val = strings.Replace(val, `\"`, `"`, -1)
+	}
+	l.items <- item{t, l.start, val}
 	l.start = l.pos
 }
 
@@ -275,7 +307,7 @@ func (l *lexer) atTerminator() bool {
 	}
 	// if r is an operator...
 	switch r {
-	case eof, '.', ',', '|', ':', ')', '(', '+', '/', '~', '{', '}', '-', '%', '*', '=':
+	case eof, '.', ',', '|', ':', ')', '(', '+', '/', '~', '{', '}', '-', '%', '*', '=', '!', '&':
 		return true
 	}
 
@@ -357,13 +389,23 @@ func lexInsideBlock(l *lexer) stateFn {
 			return lexSpace
 		case isAlphaNumeric(r):
 			return lexIdentifier
+		case r == '"':
+			l.ignore()
+			return lexString
+		case r == '`':
+			l.ignore()
+			return lexRawString
 		}
 
 		switch r {
 		case ',':
 			l.emit(tokenComma)
 		case '|':
-			l.emit(tokenPipe)
+			if l.accept("|") {
+				l.emit(tokenOr)
+			} else {
+				l.emit(tokenPipe)
+			}
 		case '+':
 			l.emit(tokenAdd)
 		case '-':
@@ -395,6 +437,18 @@ func lexInsideBlock(l *lexer) stateFn {
 				l.emit(tokenPow)
 			} else {
 				l.emit(tokenMul)
+			}
+		case '!':
+			if l.accept("=") {
+				l.emit(tokenNeq)
+			} else {
+				l.emit(tokenNot)
+			}
+		case '&':
+			if l.accept("&") {
+				l.emit(tokenAnd)
+			} else {
+				return nil
 			}
 		case '=':
 			if l.accept("=") {
@@ -458,6 +512,29 @@ func lexIdentifier(l *lexer) stateFn {
 			return lexInsideBlock
 		}
 	}
+}
+
+// Called at the end of a string
+func (l *lexer) emitString() {
+	l.backup()
+	l.emit(tokenString)
+	l.next()
+	l.ignore()
+}
+
+func lexString(l *lexer) stateFn {
+	var prev rune
+	for r := l.next(); r != '"' || prev == '\\'; r, prev = l.next(), r {
+	}
+	l.emitString()
+	return lexInsideBlock
+}
+
+func lexRawString(l *lexer) stateFn {
+	for r := l.next(); r != '`'; r = l.next() {
+	}
+	l.emitString()
+	return lexInsideBlock
 }
 
 func lexComment(l *lexer) stateFn {

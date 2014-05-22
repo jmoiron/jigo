@@ -54,6 +54,10 @@ func tt(name string) tokenTest {
 	return tokenTest{tokenText, name}
 }
 
+func ts(value string) tokenTest {
+	return tokenTest{tokenString, value}
+}
+
 func tokenize(l *lexer) []item {
 	items := make([]item, 0, 50)
 	for t := range l.items {
@@ -185,4 +189,15 @@ func TestLexer(t *testing.T) {
 			ttLbrace, tn("a"), ttColon, tn("b"), ttRbrace, ttRbrace, ttRparen, sp, ttVariableEnd, ttEOF,
 		},
 	)
+
+	tester.Test(
+		`{{ "Hello, " + "World" }}`,
+		[]tokenTest{
+			ttVariableBegin, sp, ts("Hello, "), sp, ttAdd, sp, ts("World"), sp, ttVariableEnd, ttEOF,
+		},
+	)
+
+	st := []tokenTest{ttVariableBegin, sp, ts(`Hello, "World"`), sp, ttVariableEnd, ttEOF}
+	tester.Test("{{ `Hello, \"World\"` }}", st)
+	tester.Test(`{{ "Hello, \"World\"" }}`, st)
 }

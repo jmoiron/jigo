@@ -54,7 +54,8 @@ func (p *parsetest) Test(input string, test parseTest) {
 
 	if len(test.nodeTypes) != len(tree.Root.Nodes) {
 		t.Errorf("Wrong number of nodes in %s\n", tree.Root)
-		t.Fatalf("Was expecting %d top level nodes, found %d", len(tree.Root.Nodes), len(test.nodeTypes))
+		t.Errorf("Was expecting %d top level nodes, found %d", len(tree.Root.Nodes), len(test.nodeTypes))
+		return
 	}
 
 	for i, nt := range test.nodeTypes {
@@ -82,4 +83,20 @@ func TestParser(t *testing.T) {
 		`Hello {{ name }}`,
 		parseTest{nodeTypes: []NodeType{NodeText, NodeVar}},
 	)
+
+	tester.Test(
+		`{{ 1 + 2 }}`,
+		parseTest{nodeTypes: []NodeType{NodeVar}},
+	)
+
+	tester.Test(
+		`{{ "foo" + "bar" }}`,
+		parseTest{nodeTypes: []NodeType{}},
+	)
+
+	tester.Test(
+		`{{ {"hello": "world"}[choice] }}`,
+		parseTest{nodeTypes: []NodeType{}},
+	)
+
 }

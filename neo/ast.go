@@ -30,7 +30,33 @@ const (
 	NodeFloat
 	NodeInteger
 	NodeString
+	NodeAdd
+	NodeMul
 )
+
+// This is a stack of nodes starting at a position.  It has the default NodeType
+// but should never end up in the AST;  it's use is in implementing order of
+// operations for expressions
+type nodeStack struct {
+	NodeType
+	Pos
+	Nodes []Node
+}
+
+func newStack(pos Pos) *nodeStack {
+	return &nodeStack{Pos: pos}
+}
+
+func (n *nodeStack) len() int       { return len(n.Nodes) }
+func (n *nodeStack) push(node Node) { n.Nodes = append(n.Nodes, node) }
+func (n *nodeStack) pop() Node {
+	var r Node
+	if len(n.Nodes) > 0 {
+		r = n.Nodes[len(n.Nodes)-1]
+		n.Nodes = n.Nodes[:len(n.Nodes)-1]
+	}
+	return r
+}
 
 // ListNode holds a sequence of nodes.
 type ListNode struct {
@@ -155,4 +181,24 @@ func newLiteral(pos Pos, typ itemType, val string) Node {
 		return &StringNode{NodeString, pos, val}
 	}
 	panic(fmt.Sprint("unexpected literal type ", typ))
+}
+
+type AddExpr struct {
+	NodeType
+	Pos
+	lhs      Node
+	rhs      Node
+	operator item
+}
+
+func newAddExpr(lhs, rhs Node, operator item) *AddExpr {
+	return &AddExpr{NodeAdd, lhs.Position(), lhs, rhs, operator}
+}
+
+func (a *AddExpr) String() string {
+	return fmt.Sprintf("%s %s %s", a.lhs, a.operator.val, a.rhs)
+}
+
+func (a *AddExpr) Copy() Node {
+	return newAddExpr(a.lhs, a.rhs, a.operator)
 }

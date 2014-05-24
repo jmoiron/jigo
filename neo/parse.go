@@ -113,6 +113,7 @@ type Tree struct {
 	// described to know if 3 is sufficient.
 	token     [3]item // three-token lookahead for parser.
 	peekCount int
+	stack     nodeStack
 	// vars      []string // variables defined at the moment.
 }
 
@@ -394,25 +395,36 @@ func (t *Tree) parseVar() Node {
 // themselves.
 func (t *Tree) parseExpr(terminator itemType) Node {
 	token := t.peekNonSpace()
-	expr := newList(token.pos)
+	stack := newStack(token.pos)
 	for {
 		token = t.peekNonSpace()
 		switch token.typ {
 		case terminator:
-			return expr
+			if stack.len() != 1 {
+				t.unexpected(token, "zero length expression")
+			}
+			return stack.pop()
 		case tokenName:
-			expr.append(t.lookupExpr())
+			stack.push(t.lookupExpr())
 		case tokenLparen:
 			t.expect(tokenLparen)
-			expr.append(t.parseExpr(tokenRparen))
+			stack.push(t.parseExpr(tokenRparen))
 		case tokenLbrace:
-			expr.append(t.mapExpr())
+			stack.push(t.mapExpr())
 		case tokenLbracket:
-			expr.append(t.listExpr())
+			stack.push(t.listExpr())
 		case tokenFloat, tokenInteger, tokenString:
-			expr.append(t.literalExpr())
+			stack.push(t.literalExpr())
 		case tokenAdd, tokenSub:
-			t.next()
+			t.nextNonSpace()
+			if stack.len() > 0 {
+				lhs := stack.pop()
+				rhs := t.parseExpr(terminator)
+				// TODO: we must peek to see if the next oper is a mul oper
+				// in order to conserve order of operations
+				stack.push(newAddExpr(lhs, rhs, token))
+			}
+			// FIXME: unary + is a noop, but unary - isn't..
 		case tokenMul, tokenMod, tokenDiv, tokenFloordiv:
 			t.next()
 		default:

@@ -401,6 +401,7 @@ func (t *Tree) parseExpr(terminator itemType) Node {
 		switch token.typ {
 		case terminator:
 			if stack.len() != 1 {
+				fmt.Printf("%#v\n", stack)
 				t.unexpected(token, "zero length expression")
 			}
 			return stack.pop()
@@ -412,7 +413,11 @@ func (t *Tree) parseExpr(terminator itemType) Node {
 		case tokenLbrace:
 			stack.push(t.mapExpr())
 		case tokenLbracket:
-			stack.push(t.listExpr())
+			if stack.len() == 0 {
+				stack.push(t.listExpr())
+			} else {
+				stack.push(t.indexExpr())
+			}
 		case tokenFloat, tokenInteger, tokenString:
 			stack.push(t.literalExpr())
 		case tokenAdd, tokenSub:
@@ -457,11 +462,26 @@ func (t *Tree) parenExpr() Node {
 }
 
 func (t *Tree) mapExpr() Node {
-	t.next()
-	return nil
+	for {
+		token := t.nextNonSpace()
+		switch token.typ {
+		case tokenRbracket:
+			return nil
+		}
+	}
 }
 
 func (t *Tree) listExpr() Node {
 	t.next()
 	return nil
+}
+
+func (t *Tree) indexExpr() Node {
+	for {
+		token := t.nextNonSpace()
+		switch token.typ {
+		case tokenRbrace:
+			return nil
+		}
+	}
 }

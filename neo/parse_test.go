@@ -91,7 +91,12 @@ func TestParser(t *testing.T) {
 
 	tester.Test(
 		`{{ "foo" + "bar" }}`,
-		parseTest{nodeTypes: []NodeType{}},
+		parseTest{nodeTypes: []NodeType{NodeVar}},
+	)
+
+	tester.Test(
+		`{{ 1 + 2 * 3 + 4}}`,
+		parseTest{nodeTypes: []NodeType{NodeVar}},
 	)
 
 	tester.Test(

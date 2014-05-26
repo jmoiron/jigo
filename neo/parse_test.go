@@ -1,6 +1,9 @@
 package jigo
 
-import "testing"
+import (
+	"fmt"
+	"testing"
+)
 
 func (n NodeType) String() string {
 	switch n {
@@ -94,6 +97,7 @@ func TestParser(t *testing.T) {
 		parseTest{nodeTypes: []NodeType{NodeVar}},
 	)
 
+	fmt.Println("WHEE")
 	tester.Test(
 		`{{ 1 + 2 * 3 + 4}}`,
 		parseTest{nodeTypes: []NodeType{NodeVar}},

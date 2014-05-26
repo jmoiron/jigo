@@ -202,3 +202,23 @@ func (a *AddExpr) String() string {
 func (a *AddExpr) Copy() Node {
 	return newAddExpr(a.lhs, a.rhs, a.operator)
 }
+
+type MulExpr struct {
+	NodeType
+	Pos
+	lhs      Node
+	rhs      Node
+	operator item
+}
+
+func newMulExpr(lhs, rhs Node, operator item) *MulExpr {
+	return &MulExpr{NodeMul, lhs.Position(), lhs, rhs, operator}
+}
+
+func (m *MulExpr) String() string {
+	return fmt.Sprintf("%s %s %s", m.lhs, m.operator.val, m.rhs)
+}
+
+func (m *MulExpr) Copy() Node {
+	return newMulExpr(m.lhs, m.rhs, m.operator)
+}

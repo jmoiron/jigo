@@ -401,7 +401,7 @@ func (t *Tree) parseExpr(terminator itemType) Node {
 		switch token.typ {
 		case terminator:
 			if stack.len() != 1 {
-				fmt.Printf("%#v\n", stack)
+				fmt.Printf("Stack: %#v\n", stack)
 				t.unexpected(token, "zero length expression")
 			}
 			return stack.pop()
@@ -428,10 +428,21 @@ func (t *Tree) parseExpr(terminator itemType) Node {
 				// TODO: we must peek to see if the next oper is a mul oper
 				// in order to conserve order of operations
 				stack.push(newAddExpr(lhs, rhs, token))
+			} else {
+				t.unexpected(token, "binary op")
 			}
 			// FIXME: unary + is a noop, but unary - isn't..
 		case tokenMul, tokenMod, tokenDiv, tokenFloordiv:
-			t.next()
+			t.nextNonSpace()
+			if stack.len() > 0 {
+				lhs := stack.pop()
+				rhs := t.parseExpr(terminator)
+				// we know this strongly binds ltr so no need to peek
+				stack.push(newMulExpr(lhs, rhs, token))
+				panic("exit")
+			} else {
+				t.unexpected(token, "binary op")
+			}
 		default:
 			t.unexpected(token, "expression")
 		}

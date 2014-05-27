@@ -369,7 +369,7 @@ func (t *Tree) skipComment() {
 func (t *Tree) parseVar() Node {
 	token := t.expect(tokenVariableBegin)
 	expr := newVar(token.pos)
-	expr.Node = t.parseExpr(tokenVariableEnd)
+	expr.Node = t.parseExpr(nil, tokenVariableEnd)
 	t.expect(tokenVariableEnd)
 	return expr
 	/*
@@ -392,10 +392,12 @@ func (t *Tree) parseVar() Node {
 
 // Parses an expression until it hits a terminator.  An expression one of
 // a few types of expressions, some of which can contain Expressions
-// themselves.
-func (t *Tree) parseExpr(terminator itemType) Node {
+// themselves.  A stack is passed with each callframe.
+func (t *Tree) parseExpr(stack *nodeStack, terminator itemType) Node {
 	token := t.peekNonSpace()
-	stack := newStack(token.pos)
+	if stack == nil {
+		stack = newStack(token.pos)
+	}
 	for {
 		token = t.peekNonSpace()
 		switch token.typ {

@@ -297,7 +297,6 @@ func (t *Tree) parse() (next Node) {
 		switch t.peek().typ {
 		case tokenBlockBegin:
 			// the start of a {% .. %} tag block.
-			fmt.Println("Got BlockBegin")
 			continue
 
 		case tokenVariableBegin:
@@ -410,7 +409,6 @@ func (t *Tree) parseExpr(stack *nodeStack, terminator itemType) Node {
 				fmt.Printf("Stack: %#v\n", stack)
 				t.unexpected(token, "zero length expression")
 			}
-			fmt.Println(stack, stack.len())
 			return stack.pop()
 		case tokenName:
 			stack.push(t.lookupExpr())
@@ -449,7 +447,6 @@ func (t *Tree) parseExpr(stack *nodeStack, terminator itemType) Node {
 				lhs := stack.pop()
 				rhs := t.parseExpr(stack, terminator)
 				// we know this strongly binds ltr so no need to peek
-				fmt.Println(lhs, rhs)
 				stack.push(newMulExpr(lhs, rhs, token))
 			} else {
 				t.unexpected(token, "binary op")

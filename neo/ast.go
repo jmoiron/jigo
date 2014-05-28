@@ -242,8 +242,16 @@ func (m *MapExpr) append(n *MapElem) {
 }
 
 func (m *MapExpr) String() string {
-	// FIXME: do it right
-	return fmt.Sprintf("{%s}", m.Elems)
+	b := new(bytes.Buffer)
+	b.WriteString("{")
+	for i, n := range m.Elems {
+		fmt.Fprint(b, n)
+		if i != len(m.Elems)-1 {
+			b.WriteString(", ")
+		}
+	}
+	b.WriteString("}")
+	return b.String()
 }
 
 func (m *MapExpr) Copy() Node {

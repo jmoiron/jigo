@@ -1,9 +1,6 @@
 package jigo
 
-import (
-	"fmt"
-	"testing"
-)
+import "testing"
 
 func TestStack(t *testing.T) {
 	var p Pos
@@ -47,5 +44,4 @@ func TestStack(t *testing.T) {
 	if s.len() != 1 {
 		t.Errorf("Expected len of 1, got %d\n", s.len())
 	}
-	fmt.Println(s)
 }

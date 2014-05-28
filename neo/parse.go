@@ -490,16 +490,21 @@ func (t *Tree) parenExpr() Node {
 
 func (t *Tree) mapExpr() Node {
 	tok := t.expect(tokenLbrace)
-	node := newMapExpr(tok.pos)
+	map_ := newMapExpr(tok.pos)
 	for {
 		token := t.peekNonSpace()
 		switch token.typ {
+		case tokenComma:
+			if map_.len() == 0 {
+				t.unexpected(token, "map expression")
+			}
+			t.expect(tokenComma)
 		case tokenRbrace:
 			t.next()
-			return nil
+			return map_
 		default:
 			elem := t.mapElem()
-			node.append(elem.(*MapElem))
+			map_.append(elem.(*MapElem))
 		}
 	}
 }
@@ -517,15 +522,31 @@ func (t *Tree) mapElem() Node {
 }
 
 func (t *Tree) listExpr() Node {
-	t.next()
-	return nil
+	tok := t.expect(tokenLbracket)
+	list := newList(tok.pos)
+	for {
+		token := t.peekNonSpace()
+		switch token.typ {
+		case tokenComma:
+			if list.len() == 0 {
+				t.unexpected(token, "list expression")
+			}
+			t.expect(tokenComma)
+		case tokenRbracket:
+			t.next()
+			return list
+		default:
+			elem := t.parseExpr(nil, tokenRbrace)
+			list.append(elem)
+		}
+	}
 }
 
 func (t *Tree) indexExpr() Node {
 	for {
 		token := t.nextNonSpace()
 		switch token.typ {
-		case tokenRbrace:
+		case tokenRbracket:
 			return nil
 		}
 	}

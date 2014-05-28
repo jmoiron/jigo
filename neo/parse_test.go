@@ -102,7 +102,7 @@ func TestParser(t *testing.T) {
 	)
 
 	tester.Test(
-		`{{ {"hello": "world"} }}`,
+		`{{ {"hello": "world", 1: "one"} }}`,
 		parseTest{nodeTypes: []NodeType{NodeVar}},
 	)
 

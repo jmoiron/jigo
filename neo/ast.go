@@ -72,6 +72,7 @@ func newList(pos Pos) *ListNode {
 }
 
 func (l *ListNode) append(n Node) { l.Nodes = append(l.Nodes, n) }
+func (l *ListNode) len() int      { return len(l.Nodes) }
 
 func (l *ListNode) String() string {
 	b := new(bytes.Buffer)
@@ -237,9 +238,8 @@ func newMapExpr(pos Pos) *MapExpr {
 	return &MapExpr{NodeType: NodeMapExpr, Pos: pos}
 }
 
-func (m *MapExpr) append(n *MapElem) {
-	m.Elems = append(m.Elems, n)
-}
+func (m *MapExpr) len() int          { return len(m.Elems) }
+func (m *MapExpr) append(n *MapElem) { m.Elems = append(m.Elems, n) }
 
 func (m *MapExpr) String() string {
 	b := new(bytes.Buffer)

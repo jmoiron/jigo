@@ -32,6 +32,8 @@ const (
 	NodeString
 	NodeAdd
 	NodeMul
+	NodeMapExpr
+	NodeMapElem
 )
 
 // This is a stack of nodes starting at a position.  It has the default NodeType
@@ -221,4 +223,55 @@ func (m *MulExpr) String() string {
 
 func (m *MulExpr) Copy() Node {
 	return newMulExpr(m.lhs, m.rhs, m.operator)
+}
+
+// complex literals
+
+type MapExpr struct {
+	NodeType
+	Pos
+	Elems []*MapElem
+}
+
+func newMapExpr(pos Pos) *MapExpr {
+	return &MapExpr{NodeType: NodeMapExpr, Pos: pos}
+}
+
+func (m *MapExpr) append(n *MapElem) {
+	m.Elems = append(m.Elems, n)
+}
+
+func (m *MapExpr) String() string {
+	// FIXME: do it right
+	return fmt.Sprintf("{%s}", m.Elems)
+}
+
+func (m *MapExpr) Copy() Node {
+	if m == nil {
+		return m
+	}
+	n := newMapExpr(m.Pos)
+	for _, elem := range m.Elems {
+		n.append(elem.Copy().(*MapElem))
+	}
+	return n
+}
+
+type MapElem struct {
+	NodeType
+	Pos
+	Key   Node
+	Value Node
+}
+
+func newMapElem(lhs, rhs Node) *MapElem {
+	return &MapElem{NodeMapElem, lhs.Position(), lhs, rhs}
+}
+
+func (m *MapElem) String() string {
+	return fmt.Sprintf("%s: %s", m.Key, m.Value)
+}
+
+func (m *MapElem) Copy() Node {
+	return newMapElem(m.Key, m.Value)
 }

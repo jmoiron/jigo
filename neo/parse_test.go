@@ -1,9 +1,6 @@
 package jigo
 
-import (
-	"fmt"
-	"testing"
-)
+import "testing"
 
 func (n NodeType) String() string {
 	switch n {
@@ -30,6 +27,7 @@ type parsetest struct {
 func (p *parsetest) Test(input string, test parseTest) {
 	t := p.T
 	e := NewEnvironment()
+	t.Log(input)
 	tree, err := e.parse(input, "test", "test.jigo")
 
 	/*
@@ -67,6 +65,7 @@ func (p *parsetest) Test(input string, test parseTest) {
 			t.Errorf("Type mismatch: expecting %dth to be %s, but was %s", i, nt, rnt)
 		}
 	}
+	t.Log(tree.Root)
 }
 
 func TestParser(t *testing.T) {
@@ -97,15 +96,14 @@ func TestParser(t *testing.T) {
 		parseTest{nodeTypes: []NodeType{NodeVar}},
 	)
 
-	fmt.Println("WHEE")
 	tester.Test(
 		`{{ 1 + 2 * 3 + 4}}`,
 		parseTest{nodeTypes: []NodeType{NodeVar}},
 	)
 
 	tester.Test(
-		`{{ {"hello": "world"}[choice] }}`,
-		parseTest{nodeTypes: []NodeType{}},
+		`{{ {"hello": "world"} }}`,
+		parseTest{nodeTypes: []NodeType{NodeVar}},
 	)
 
 }

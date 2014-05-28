@@ -358,7 +358,7 @@ func (t *Tree) skipComment() {
 			continue
 		case tokenCommentEnd:
 		default:
-			t.unexpected(token, "end commend")
+			t.unexpected(token, "end comment")
 		}
 		break
 	}
@@ -398,20 +398,25 @@ func (t *Tree) parseExpr(stack *nodeStack, terminator itemType) Node {
 	if stack == nil {
 		stack = newStack(token.pos)
 	}
+	var unary item
 	for {
+		if unary.typ != 0 && stack.len() > 0 {
+			// apply the unary to the expression
+		}
 		token = t.peekNonSpace()
 		switch token.typ {
 		case terminator:
-			if stack.len() != 1 {
+			if stack.len() == 0 {
 				fmt.Printf("Stack: %#v\n", stack)
 				t.unexpected(token, "zero length expression")
 			}
+			fmt.Println(stack, stack.len())
 			return stack.pop()
 		case tokenName:
 			stack.push(t.lookupExpr())
 		case tokenLparen:
 			t.expect(tokenLparen)
-			stack.push(t.parseExpr(tokenRparen))
+			stack.push(t.parseExpr(nil, tokenRparen))
 		case tokenLbrace:
 			stack.push(t.mapExpr())
 		case tokenLbracket:
@@ -425,25 +430,37 @@ func (t *Tree) parseExpr(stack *nodeStack, terminator itemType) Node {
 		case tokenAdd, tokenSub:
 			t.nextNonSpace()
 			if stack.len() > 0 {
-				lhs := stack.pop()
-				rhs := t.parseExpr(terminator)
-				// TODO: we must peek to see if the next oper is a mul oper
-				// in order to conserve order of operations
-				stack.push(newAddExpr(lhs, rhs, token))
+				rhs := t.parseExpr(stack, terminator)
+				// if the next token is an operator with greater precedence, push rhs
+				// to the stack and continue going from there
+				if tok := t.peekNonSpace(); tok.precedence() > token.precedence() {
+					stack.push(rhs)
+					return t.parseExpr(stack, terminator)
+				} else {
+					lhs := stack.pop()
+					stack.push(newAddExpr(lhs, rhs, token))
+				}
 			} else {
-				t.unexpected(token, "binary op")
+				unary = token
 			}
-			// FIXME: unary + is a noop, but unary - isn't..
 		case tokenMul, tokenMod, tokenDiv, tokenFloordiv:
 			t.nextNonSpace()
 			if stack.len() > 0 {
 				lhs := stack.pop()
-				rhs := t.parseExpr(terminator)
+				rhs := t.parseExpr(stack, terminator)
 				// we know this strongly binds ltr so no need to peek
+				fmt.Println(lhs, rhs)
 				stack.push(newMulExpr(lhs, rhs, token))
-				panic("exit")
 			} else {
 				t.unexpected(token, "binary op")
+			}
+		case tokenComma:
+			// if we are terminating a map, param list, or list, return the expression
+			if terminator == tokenRbracket || terminator == tokenRparen || terminator == tokenRbrace {
+				if stack.len() != 1 {
+					t.unexpected(token, "expression")
+				}
+				return stack.pop()
 			}
 		default:
 			t.unexpected(token, "expression")
@@ -475,13 +492,31 @@ func (t *Tree) parenExpr() Node {
 }
 
 func (t *Tree) mapExpr() Node {
+	tok := t.expect(tokenLbrace)
+	node := newMapExpr(tok.pos)
 	for {
-		token := t.nextNonSpace()
+		token := t.peekNonSpace()
 		switch token.typ {
-		case tokenRbracket:
+		case tokenRbrace:
+			t.next()
 			return nil
+		default:
+			elem := t.mapElem()
+			node.append(elem.(*MapElem))
 		}
 	}
+}
+
+// parse a single map element;  assume that the next token is not '}'
+func (t *Tree) mapElem() Node {
+	key := t.parseExpr(nil, tokenColon)
+	colon := t.nextNonSpace()
+	if colon.typ != tokenColon {
+		t.unexpected(colon, "map key expr")
+	}
+	val := t.parseExpr(nil, tokenRbrace)
+	return newMapElem(key, val)
+
 }
 
 func (t *Tree) listExpr() Node {

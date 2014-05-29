@@ -1,6 +1,11 @@
 package jigo
 
-import "testing"
+import (
+	"fmt"
+	"testing"
+
+	"github.com/davecgh/go-spew/spew"
+)
 
 func (n NodeType) String() string {
 	switch n {
@@ -12,6 +17,34 @@ func (n NodeType) String() string {
 		return "NodeVar"
 	default:
 		return "Unknown Type"
+	}
+}
+
+// Recurisvely spew a whole tree of nodes.
+func spewTree(n Node, indent string) {
+	switch n.(type) {
+	case *ListNode:
+		n := n.(*ListNode)
+		fmt.Printf("%s(ListNode) {\n", indent)
+		for _, n := range n.Nodes {
+			spewTree(n, indent+"  ")
+		}
+		fmt.Printf("%s}\n", indent)
+	case *VarNode:
+		n := n.(*VarNode)
+		fmt.Printf("%s(VarNode) {\n", indent)
+		spewTree(n.Node, indent+"  ")
+		fmt.Printf("%s}\n", indent)
+	case *AddExpr:
+		n := n.(*AddExpr)
+		fmt.Printf("%s(AddExpr) {\n", indent)
+		spewTree(n.lhs, indent+"  ")
+		fmt.Printf("%s    +\n", indent)
+		spewTree(n.rhs, indent+"  ")
+		fmt.Printf("%s}\n", indent)
+	default:
+		fmt.Printf(indent)
+		spew.Dump(n)
 	}
 }
 
@@ -65,6 +98,7 @@ func (p *parsetest) Test(input string, test parseTest) {
 			t.Errorf("Type mismatch: expecting %dth to be %s, but was %s", i, nt, rnt)
 		}
 	}
+	spewTree(tree.Root, "")
 	t.Log(tree.Root)
 }
 

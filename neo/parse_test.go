@@ -42,6 +42,13 @@ func spewTree(n Node, indent string) {
 		fmt.Printf("%s    +\n", indent)
 		spewTree(n.rhs, indent+"  ")
 		fmt.Printf("%s}\n", indent)
+	case *MulExpr:
+		n := n.(*MulExpr)
+		fmt.Printf("%s(MulExpr) {\n", indent)
+		spewTree(n.lhs, indent+"  ")
+		fmt.Printf("%s    *\n", indent)
+		spewTree(n.rhs, indent+"  ")
+		fmt.Printf("%s}\n", indent)
 	default:
 		fmt.Printf(indent)
 		spew.Dump(n)

@@ -387,6 +387,8 @@ func lexInsideBlock(l *lexer) stateFn {
 		switch {
 		case isSpace(r):
 			return lexSpace
+		case isNumeric(r):
+			return lexNumber
 		case isAlphaNumeric(r):
 			return lexIdentifier
 		case r == '"':
@@ -514,6 +516,26 @@ func lexIdentifier(l *lexer) stateFn {
 	}
 }
 
+func lexNumber(l *lexer) stateFn {
+	tokType := tokenInteger
+	for {
+		switch r := l.next(); {
+		case isNumeric(r):
+			// abosrb
+		case r == '.':
+			if tokType != tokenFloat {
+				tokType = tokenFloat
+			} else {
+				l.errorf("two dots in numeric token")
+			}
+		default:
+			l.backup()
+			l.emit(tokType)
+			return lexInsideBlock
+		}
+	}
+}
+
 // Called at the end of a string
 func (l *lexer) emitString() {
 	l.backup()
@@ -566,4 +588,8 @@ func isEndOfLine(r rune) bool {
 // isAlphaNumeric reports whether r is an alphabetic, digit, or underscore.
 func isAlphaNumeric(r rune) bool {
 	return r == '_' || unicode.IsLetter(r) || unicode.IsDigit(r)
+}
+
+func isNumeric(r rune) bool {
+	return unicode.IsDigit(r)
 }

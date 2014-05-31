@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"runtime"
 	"strings"
-
-	"github.com/davecgh/go-spew/spew"
 )
 
 // Important to jigo, as to most languages, is the idea of an expression.
@@ -426,11 +424,6 @@ func (t *Tree) parseExpr(stack *nodeStack, terminator itemType) Node {
 	for {
 		if unary.typ != 0 && stack.len() > 0 {
 			// apply the unary to the expression
-		}
-		if stack.len() > 1 {
-			fmt.Printf("Stack: ")
-			spew.Dump(stack.Nodes)
-			return t.collapse(stack)
 		}
 		token = t.peekNonSpace()
 		switch token.typ {

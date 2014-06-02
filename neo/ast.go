@@ -27,6 +27,7 @@ const (
 	NodeText
 	NodeVar
 	NodeLookup
+	NodeUnary
 	NodeFloat
 	NodeInteger
 	NodeString
@@ -34,6 +35,7 @@ const (
 	NodeMul
 	NodeMapExpr
 	NodeMapElem
+	NodeIndexExpr
 )
 
 // This is a stack of nodes starting at a position.  It has the default NodeType
@@ -164,6 +166,20 @@ type FloatNode struct {
 func (f *FloatNode) Copy() Node     { return &FloatNode{f.NodeType, f.Pos, f.Value} }
 func (f *FloatNode) String() string { return fmt.Sprint(f.Value) }
 
+type UnaryNode struct {
+	NodeType
+	Pos
+	Value Node
+	Unary item
+}
+
+func newUnaryNode(val Node, unary item) *UnaryNode {
+	return &UnaryNode{NodeUnary, val.Position(), val, unary}
+}
+
+func (u *UnaryNode) Copy() Node     { return &UnaryNode{u.NodeType, u.Pos, u.Value, u.Unary} }
+func (u *UnaryNode) String() string { return fmt.Sprintf("%s%s", u.Unary.val, u.Value) }
+
 // newLiteral creates a new string, integer, or float node depending on itemType
 func newLiteral(pos Pos, typ itemType, val string) Node {
 	switch typ {
@@ -282,4 +298,23 @@ func (m *MapElem) String() string {
 
 func (m *MapElem) Copy() Node {
 	return newMapElem(m.Key, m.Value)
+}
+
+type IndexExpr struct {
+	NodeType
+	Pos
+	Value Node
+	Index Node
+}
+
+func newIndexExpr(val, idx Node) *IndexExpr {
+	return &IndexExpr{NodeIndexExpr, val.Position(), val, idx}
+}
+
+func (i *IndexExpr) String() string {
+	return fmt.Sprintf("%s[%s}", i.Value, i.Index)
+}
+
+func (i *IndexExpr) Copy() Node {
+	return newIndexExpr(i.Value, i.Index)
 }

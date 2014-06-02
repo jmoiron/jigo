@@ -412,6 +412,46 @@ func (t *Tree) parseVar() Node {
 	*/
 }
 
+// parse a single expression simple expression.  This is a lookup, literal, or
+// index expression.
+func (t *Tree) parseSingleExpr(stack *nodeStack, terminator itemType) Node {
+	token := t.peekNonSpace()
+	switch token.typ {
+	case terminator:
+		t.unexpected(token, "expected expression")
+	case tokenName:
+		return t.lookupExpr()
+	case tokenLparen:
+		t.expect(tokenLparen)
+		return t.parseExpr(nil, tokenRparen)
+	case tokenLbrace:
+		return t.mapExpr()
+	case tokenLbracket:
+		return t.listExpr()
+	case tokenFloat, tokenInteger, tokenString:
+		return t.literalExpr()
+	case tokenAdd, tokenSub:
+		unary := t.nextNonSpace()
+		value := t.parseSingleExpr(nil, terminator)
+		switch value.Type() {
+		case NodeUnary:
+			t.unexpected(unary, "expression")
+		case NodeFloat:
+			// FIXME: apply unary oper to value
+			return value
+		case NodeInteger:
+			// FIXME: apply unary oper to value
+			return value
+		default:
+			return newUnaryNode(value, unary)
+		}
+	default:
+		t.unexpected(token, "expression")
+	}
+	panic("unexpected")
+
+}
+
 // Parses an expression until it hits a terminator.  An expression one of
 // a few types of expressions, some of which can contain Expressions
 // themselves.  A stack is passed with each callframe.
@@ -441,34 +481,38 @@ func (t *Tree) parseExpr(stack *nodeStack, terminator itemType) Node {
 		case tokenLbrace:
 			stack.push(t.mapExpr())
 		case tokenLbracket:
-			if stack.len() == 0 {
-				stack.push(t.listExpr())
-			} else {
-				stack.push(t.indexExpr())
-			}
+			stack.push(t.listExpr())
 		case tokenFloat, tokenInteger, tokenString:
 			stack.push(t.literalExpr())
 		case tokenAdd, tokenSub:
+			// consume the plus token
 			t.nextNonSpace()
+			// if the stack is empty this is definitely a unary, set current unary and
+			// continue.
+			if stack.len() == 0 {
+				unary = token
+				continue
+			}
+			// if the stack isn't empty, the previous expression is the lhs for the
+			// upcoming expression:
 			if stack.len() > 0 {
 				rhs := t.parseExpr(stack, terminator)
-				// if the next token is an operator with greater precedence, push rhs
-				// to the stack and continue going from there
+				// if the token after the rhs expression is an operator with greater precedence,
+				// push rhs to the stack and continue going from there
 				if tok := t.peekNonSpace(); tok.precedence() > token.precedence() {
 					stack.push(rhs)
 					return t.parseExpr(stack, terminator)
 				} else {
+					// otherwise, take lhs off the stack and create a new AddExpr
 					lhs := stack.pop()
 					stack.push(newAddExpr(lhs, rhs, token))
 				}
-			} else {
-				unary = token
 			}
 		case tokenMul, tokenMod, tokenDiv, tokenFloordiv:
 			t.nextNonSpace()
 			if stack.len() > 0 {
 				lhs := stack.pop()
-				rhs := t.parseExpr(stack, terminator)
+				rhs := t.parseSingleExpr(stack, terminator)
 				// we know this strongly binds ltr so no need to peek
 				stack.push(newMulExpr(lhs, rhs, token))
 			} else {
@@ -503,7 +547,23 @@ func (t *Tree) literalExpr() Node {
 
 func (t *Tree) lookupExpr() Node {
 	name := t.nextNonSpace()
-	return newLookup(name.pos, name.val)
+	return t.maybeIndexExpr(newLookup(name.pos, name.val))
+}
+
+// determine if there is one or more index expressions on the end
+// of the expression passed in.  If there is, return a lookup expr,
+// otherwise, return the original node
+func (t *Tree) maybeIndexExpr(n Node) Node {
+	for {
+		tok := t.peekNonSpace()
+		if tok.typ == tokenLbrace {
+			t.nextNonSpace()
+			index := t.parseExpr(nil, tokenRbrace)
+			n = newIndexExpr(n, index)
+		} else {
+			return n
+		}
+	}
 }
 
 func (t *Tree) parenExpr() Node {
@@ -524,7 +584,7 @@ func (t *Tree) mapExpr() Node {
 			t.expect(tokenComma)
 		case tokenRbrace:
 			t.next()
-			return map_
+			return t.maybeIndexExpr(map_)
 		default:
 			elem := t.mapElem()
 			map_.append(elem.(*MapElem))
@@ -557,20 +617,10 @@ func (t *Tree) listExpr() Node {
 			t.expect(tokenComma)
 		case tokenRbracket:
 			t.next()
-			return list
+			return t.maybeIndexExpr(list)
 		default:
 			elem := t.parseExpr(nil, tokenRbrace)
 			list.append(elem)
-		}
-	}
-}
-
-func (t *Tree) indexExpr() Node {
-	for {
-		token := t.nextNonSpace()
-		switch token.typ {
-		case tokenRbracket:
-			return nil
 		}
 	}
 }

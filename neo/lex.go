@@ -42,6 +42,8 @@ func (i item) String() string {
 }
 
 // Return operator precedence.  If it is not an operator, returns 0
+// The index operator is special cased to have the highest priorty by the
+// parser's maybeIndexExpr function.
 // Precedence    Operator
 //    5             *  /  //  %
 //    4             +  -

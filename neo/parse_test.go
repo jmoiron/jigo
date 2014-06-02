@@ -49,6 +49,19 @@ func spewTree(n Node, indent string) {
 		fmt.Printf("%s    *\n", indent)
 		spewTree(n.rhs, indent+"  ")
 		fmt.Printf("%s}\n", indent)
+	case *MapExpr:
+		n := n.(*MapExpr)
+		fmt.Printf("%s(MapExpr) {\n", indent)
+		for _, n := range n.Elems {
+			spewTree(n, indent+"  ")
+		}
+		fmt.Printf("%s}\n", indent)
+	case *MapElem:
+		n := n.(*MapElem)
+		fmt.Printf("%s(MapElem) {\n", indent)
+		spewTree(n.Key, indent+"  key:")
+		spewTree(n.Value, indent+"  val:")
+		fmt.Printf("%s}\n", indent)
 	default:
 		fmt.Printf(indent)
 		spew.Dump(n)

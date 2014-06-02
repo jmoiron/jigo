@@ -460,11 +460,8 @@ func (t *Tree) parseExpr(stack *nodeStack, terminator itemType) Node {
 	if stack == nil {
 		stack = newStack(token.pos)
 	}
-	var unary item
+	stack.push(t.parseSingleExpr(stack, terminator))
 	for {
-		if unary.typ != 0 && stack.len() > 0 {
-			// apply the unary to the expression
-		}
 		token = t.peekNonSpace()
 		switch token.typ {
 		case terminator:
@@ -473,26 +470,9 @@ func (t *Tree) parseExpr(stack *nodeStack, terminator itemType) Node {
 				t.unexpected(token, "zero length expression")
 			}
 			return stack.pop()
-		case tokenName:
-			stack.push(t.lookupExpr())
-		case tokenLparen:
-			t.expect(tokenLparen)
-			stack.push(t.parseExpr(nil, tokenRparen))
-		case tokenLbrace:
-			stack.push(t.mapExpr())
-		case tokenLbracket:
-			stack.push(t.listExpr())
-		case tokenFloat, tokenInteger, tokenString:
-			stack.push(t.literalExpr())
 		case tokenAdd, tokenSub:
 			// consume the plus token
 			t.nextNonSpace()
-			// if the stack is empty this is definitely a unary, set current unary and
-			// continue.
-			if stack.len() == 0 {
-				unary = token
-				continue
-			}
 			// if the stack isn't empty, the previous expression is the lhs for the
 			// upcoming expression:
 			if stack.len() > 0 {

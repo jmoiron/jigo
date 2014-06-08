@@ -319,13 +319,11 @@ func (t *Tree) parse() (next Node) {
 		var n Node
 		switch t.peek().typ {
 		case tokenBlockBegin:
-			// the start of a {% .. %} tag block.
-			continue
-
+			// the start of a {% .. %} template block
+			n = t.parseBlock()
 		case tokenVariableBegin:
 			// the start of a {{ .. }} variable print block.
 			n = t.parseVar()
-
 		case tokenCommentBegin:
 			t.skipComment()
 			continue
@@ -394,22 +392,41 @@ func (t *Tree) parseVar() Node {
 	expr.Node = t.parseExpr(nil, tokenVariableEnd)
 	t.expect(tokenVariableEnd)
 	return expr
-	/*
-			case tokenAdd, tokenSub:
-				expr.append(newAritmeticOp(token))
-			case tokenMul, tokenDiv, tokenFloordiv:
-				// how do we do this again ?
-			case tokenGt, tokenGteq, tokenLt, tokenLteq, tokenEqEq:
-				t.unexpected(token, "unexpected boolean operator in var block")
-			case tokenVariableEnd:
-				t.nextNonSpace()
-			default:
-				t.unexpected(token, "end variable")
-			}
-			break
-		}
-		return n
-	*/
+}
+
+func (t *Tree) parseBlock() Node {
+	start := t.expect(tokenBlockBegin)
+	blockType := t.peekNonSpace()
+	switch blockType.val {
+	case "for":
+	case "if":
+	case "block":
+	case "extends":
+	case "print":
+	case "macro":
+	case "include":
+	case "from":
+	case "import":
+	case "set":
+		t.backup2(start)
+		return t.parseSet()
+	default:
+		t.unexpected(blockType, "invalid block type")
+	}
+	return nil
+}
+
+func (t *Tree) parseSet() Node {
+	start := t.expect(tokenBlockBegin)
+	set := t.nextNonSpace()
+	if set.val != "set" {
+		t.unexpected(set, "set")
+	}
+	name := t.lookupExpr()
+	t.expect(tokenEq)
+	val := t.parseSingleExpr(nil, tokenBlockEnd)
+	t.expect(tokenBlockEnd)
+	return newSet(start.pos, name, val)
 }
 
 // parse a single expression simple expression.  This is a lookup, literal, or

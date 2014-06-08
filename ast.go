@@ -36,6 +36,7 @@ const (
 	NodeMapExpr
 	NodeMapElem
 	NodeIndexExpr
+	NodeSet
 )
 
 // This is a stack of nodes starting at a position.  It has the default NodeType
@@ -317,4 +318,21 @@ func (i *IndexExpr) String() string {
 
 func (i *IndexExpr) Copy() Node {
 	return newIndexExpr(i.Value, i.Index)
+}
+
+// block types
+type SetNode struct {
+	NodeType
+	Pos
+	lhs Node
+	rhs Node
+}
+
+func newSet(pos Pos, lhs, rhs Node) *SetNode {
+	return &SetNode{NodeSet, pos, lhs, rhs}
+}
+
+func (s *SetNode) String() string { return fmt.Sprintf("set %s = %s", s.lhs, s.rhs) }
+func (s *SetNode) Copy() Node {
+	return newSet(s.Pos, s.lhs.Copy(), s.rhs.Copy())
 }

@@ -160,4 +160,8 @@ func TestParser(t *testing.T) {
 		parseTest{nodeTypes: []NodeType{NodeVar}},
 	)
 
+	tester.Test(
+		`{% set foo = 1 %}`,
+		parseTest{nodeTypes: []NodeType{NodeSet}},
+	)
 }

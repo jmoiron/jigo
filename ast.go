@@ -37,6 +37,8 @@ const (
 	NodeMapElem
 	NodeIndexExpr
 	NodeSet
+	NodeIf
+	NodeFor
 )
 
 // This is a stack of nodes starting at a position.  It has the default NodeType
@@ -335,4 +337,53 @@ func newSet(pos Pos, lhs, rhs Node) *SetNode {
 func (s *SetNode) String() string { return fmt.Sprintf("set %s = %s", s.lhs, s.rhs) }
 func (s *SetNode) Copy() Node {
 	return newSet(s.Pos, s.lhs.Copy(), s.rhs.Copy())
+}
+
+type IfNode struct {
+	NodeType
+	Pos
+	Guard Node
+	Body  Node
+	Elifs []Node
+	Else  Node
+}
+
+func newIf(pos Pos) *IfNode {
+	return &IfNode{NodeType: NodeIf, Pos: pos}
+}
+
+func (i *IfNode) String() string { return "if" }
+func (i *IfNode) Copy() Node {
+	n := newIf(i.Pos)
+	n.Guard = i.Guard.Copy()
+	n.Body = i.Body.Copy()
+	n.Elifs = make([]Node, len(i.Elifs))
+	for _, e := range i.Elifs {
+		n.Elifs = append(n.Elifs, e.Copy())
+	}
+	n.Else = i.Else.Copy()
+	return n
+}
+
+type ForNode struct {
+	NodeType
+	Pos
+	ForExpr Node
+	InExpr  Node
+	Body    Node
+}
+
+func newFor(pos Pos) *ForNode {
+	return &ForNode{NodeType: NodeFor, Pos: pos}
+}
+
+func (f *ForNode) String() string {
+	return fmt.Sprintf("{% for %s in %s %}%s{% endfor %}", f.ForExpr, f.InExpr, f.Body)
+}
+func (f *ForNode) Copy() Node {
+	n := newFor(f.Pos)
+	n.ForExpr = f.ForExpr.Copy()
+	n.InExpr = f.InExpr.Copy()
+	n.Body = f.Body.Copy()
+	return n
 }

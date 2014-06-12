@@ -407,6 +407,7 @@ func (t *Tree) parseBlock() Node {
 	case "include":
 	case "from":
 	case "import":
+	case "call":
 	case "set":
 		t.backup2(start)
 		return t.parseSet()

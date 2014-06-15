@@ -387,3 +387,18 @@ func (f *ForNode) Copy() Node {
 	n.Body = f.Body.Copy()
 	return n
 }
+
+type BlockNode struct {
+	NodeType
+	Pos
+	Name string
+	Body Node
+}
+
+func (b *BlockNode) String() string {
+	return fmt.Sprintf("{% block %s %}%s{% endblock %}", b.Name, b.Body)
+}
+
+func (b *BlockNode) Copy() Node {
+
+}

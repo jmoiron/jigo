@@ -402,3 +402,11 @@ func (b *BlockNode) String() string {
 func (b *BlockNode) Copy() Node {
 
 }
+
+type ExtendsNode struct{}
+type PrintNode struct{}
+type MacroNode struct{}
+type IncludeNode struct{}
+type FromNOde struct{}
+type ImportNode struct{}
+type CallNode struct{}

@@ -400,7 +400,7 @@ func (b *BlockNode) String() string {
 }
 
 func (b *BlockNode) Copy() Node {
-
+	return &BlockNode{b.NodeType, b.Pos, b.Name, b.Body.Copy()}
 }
 
 type ExtendsNode struct{}

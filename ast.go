@@ -403,10 +403,25 @@ func (b *BlockNode) Copy() Node {
 	return &BlockNode{b.NodeType, b.Pos, b.Name, b.Body.Copy()}
 }
 
+type Import struct {
+	Name string
+	As   string
+}
+
 type ExtendsNode struct{}
 type PrintNode struct{}
 type MacroNode struct{}
 type IncludeNode struct{}
-type FromNOde struct{}
-type ImportNode struct{}
+type FromNode struct {
+	NodeType
+	Pos
+	Module  string
+	Imports []Import
+}
+type ImportNode struct {
+	NodeType
+	Pos
+	Module string
+	Body   Import
+}
 type CallNode struct{}

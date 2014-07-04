@@ -400,6 +400,8 @@ func (t *Tree) parseBlock() Node {
 	switch blockType.val {
 	case "for":
 	case "if":
+		t.backup2(start)
+		return t.parseIf()
 	case "block":
 	case "extends":
 	case "print":
@@ -428,6 +430,18 @@ func (t *Tree) parseSet() Node {
 	val := t.parseSingleExpr(nil, tokenBlockEnd)
 	t.expect(tokenBlockEnd)
 	return newSet(start.pos, name, val)
+}
+
+func (t *Tree) parseIf() Node {
+	t.expect(tokenBlockBegin)
+	iftok := t.nextNonSpace()
+	if iftok.val != "if" {
+		t.unexpected(iftok, "if")
+	}
+	t.parseSingleExpr(nil, tokenBlockEnd)
+	// we need some kind of parseBody here
+
+	return nil
 }
 
 // parse a single expression simple expression.  This is a lookup, literal, or

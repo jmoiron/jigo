@@ -408,10 +408,23 @@ type Import struct {
 	As   string
 }
 
-type ExtendsNode struct{}
-type PrintNode struct{}
-type MacroNode struct{}
-type IncludeNode struct{}
+type ExtendsNode struct {
+	NodeType
+	Pos
+}
+type PrintNode struct {
+	NodeType
+	Pos
+}
+type MacroNode struct {
+	NodeType
+	Pos
+}
+type IncludeNode struct {
+	NodeType
+	Pos
+}
+
 type FromNode struct {
 	NodeType
 	Pos
@@ -424,4 +437,7 @@ type ImportNode struct {
 	Module string
 	Body   Import
 }
-type CallNode struct{}
+type CallNode struct {
+	NodeType
+	Pos
+}

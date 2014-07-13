@@ -313,47 +313,28 @@ func (t *Tree) Parse(lex *lexer) (tree *Tree, err error) {
 // parse is the top-level parser for a template, essentially the same
 // as itemList except it also parses {{define}} actions.
 // It runs to EOF.
-func (t *Tree) parse() (next Node) {
+func (t *Tree) parse() {
 	t.Root = newList(t.peek().pos)
+	for n := t.parseNextNode(); n != nil; n = t.parseNextNode() {
+		t.Root.append(n)
+	}
+}
+
+// parseNextNode parses the next outer node and returns it.  If EOF is encountered,
+// parseNextNode returns nil.  Comments are discarded.
+func (t *Tree) parseNextNode() Node {
 	for t.peek().typ != tokenEOF {
-		var n Node
 		switch t.peek().typ {
-		case tokenBlockBegin:
-			// the start of a {% .. %} template block
-			n = t.parseBlock()
-		case tokenVariableBegin:
-			// the start of a {{ .. }} variable print block.
-			n = t.parseVar()
 		case tokenCommentBegin:
 			t.skipComment()
 			continue
-
+		case tokenBlockBegin:
+			return t.parseBlock()
+		case tokenVariableBegin:
+			return t.parseVar()
 		case tokenText:
-			// this token is text, lets save it in a text node and continue
-			n = t.parseText()
+			return t.parseText()
 		}
-		t.Root.append(n)
-
-		/*
-			delim := t.next()
-			if t.nextNonSpace().typ == itemDefine {
-				newT := New("definition") // name will be updated once we know it.
-				newT.text = t.text
-				newT.ParseName = t.ParseName
-				newT.startParse(t.funcs, t.lex)
-				newT.parseDefinition(treeSet)
-				continue
-
-			}
-			t.backup2(delim)
-
-
-			n := t.textOrAction()
-			if n.Type() == nodeEnd {
-				t.errorf("unexpected %s", n)
-			}
-			t.Root.append(n)
-		*/
 	}
 	return nil
 }
@@ -439,8 +420,9 @@ func (t *Tree) parseIf() Node {
 		t.unexpected(iftok, "if")
 	}
 	t.parseSingleExpr(nil, tokenBlockEnd)
+	t.expect(tokenBlockEnd)
 	// we need some kind of parseBody here
-
+	fmt.Println(t.peekNonSpace())
 	return nil
 }
 
@@ -460,7 +442,7 @@ func (t *Tree) parseSingleExpr(stack *nodeStack, terminator itemType) Node {
 		return t.mapExpr()
 	case tokenLbracket:
 		return t.listExpr()
-	case tokenFloat, tokenInteger, tokenString:
+	case tokenFloat, tokenInteger, tokenString, tokenBool:
 		return t.literalExpr()
 	case tokenAdd, tokenSub:
 		unary := t.nextNonSpace()
@@ -481,7 +463,6 @@ func (t *Tree) parseSingleExpr(stack *nodeStack, terminator itemType) Node {
 		t.unexpected(token, "expression")
 	}
 	panic("unexpected")
-
 }
 
 // Parses an expression until it hits a terminator.  An expression one of
@@ -549,7 +530,7 @@ func (t *Tree) parseExpr(stack *nodeStack, terminator itemType) Node {
 func (t *Tree) literalExpr() Node {
 	token := t.nextNonSpace()
 	switch token.typ {
-	case tokenFloat, tokenInteger, tokenString:
+	case tokenFloat, tokenInteger, tokenString, tokenBool:
 		return newLiteral(token.pos, token.typ, token.val)
 	default:
 		t.unexpected(token, "literal")

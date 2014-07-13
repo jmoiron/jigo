@@ -31,6 +31,7 @@ const (
 	NodeFloat
 	NodeInteger
 	NodeString
+	NodeBool
 	NodeAdd
 	NodeMul
 	NodeMapExpr
@@ -151,6 +152,15 @@ type StringNode struct {
 func (s *StringNode) Copy() Node     { return &StringNode{s.NodeType, s.Pos, s.Value} }
 func (s *StringNode) String() string { return fmt.Sprintf(`"%s"`, s.Value) }
 
+type BoolNode struct {
+	NodeType
+	Pos
+	Value bool
+}
+
+func (s *BoolNode) Copy() Node     { return &BoolNode{s.NodeType, s.Pos, s.Value} }
+func (s *BoolNode) String() string { return fmt.Sprintf(`%s`, s.Value) }
+
 type IntegerNode struct {
 	NodeType
 	Pos
@@ -201,6 +211,12 @@ func newLiteral(pos Pos, typ itemType, val string) Node {
 		return &IntegerNode{NodeInteger, pos, v}
 	case tokenString:
 		return &StringNode{NodeString, pos, val}
+	case tokenBool:
+		var v bool
+		if val == "true" {
+			v = true
+		}
+		return &BoolNode{NodeBool, pos, v}
 	}
 	panic(fmt.Sprint("unexpected literal type ", typ))
 }

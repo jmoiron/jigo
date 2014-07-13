@@ -164,4 +164,9 @@ func TestParser(t *testing.T) {
 		`{% set foo = 1 %}`,
 		parseTest{nodeTypes: []NodeType{NodeSet}},
 	)
+
+	tester.Test(
+		`{% if true %}something{% else %}something else{% endif %}`,
+		parseTest{nodeTypes: []NodeType{NodeIf}},
+	)
 }

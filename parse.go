@@ -339,6 +339,16 @@ func (t *Tree) parseNextNode() Node {
 	return nil
 }
 
+func (t *Tree) nextBlockName() string {
+	if t.peekNonSpace().typ != tokenBlockBegin {
+		return ""
+	}
+	eat := t.nextNonSpace()
+	name := t.peekNonSpace()
+	t.backup2(eat)
+	return name.val
+}
+
 func (t *Tree) parseText() Node {
 	switch token := t.next(); token.typ {
 	case tokenText:
@@ -414,14 +424,68 @@ func (t *Tree) parseSet() Node {
 }
 
 func (t *Tree) parseIf() Node {
-	t.expect(tokenBlockBegin)
+	begin := t.expect(tokenBlockBegin)
 	iftok := t.nextNonSpace()
 	if iftok.val != "if" {
 		t.unexpected(iftok, "if")
 	}
-	t.parseSingleExpr(nil, tokenBlockEnd)
+	node := newIf(begin.pos)
+
+	cond := newIfCond(begin.pos)
+	cond.Guard = t.parseSingleExpr(nil, tokenBlockEnd)
 	t.expect(tokenBlockEnd)
+	body := newList(t.peek().pos)
 	// we need some kind of parseBody here
+
+	inElse := false
+	for {
+		block := t.nextBlockName()
+		switch block {
+		case "elif":
+			if inElse {
+				panic("Elif encountered after previous else")
+			}
+			// set the body for the previous conditional and append it
+			cond.Body = body
+			node.Conditionals = append(node.Conditionals, cond)
+			// create a new elif conditional
+			cond := newElifCond(t.next().pos)
+			t.nextNonSpace()
+			cond.Guard = t.parseSingleExpr(nil, tokenBlockEnd)
+			t.expect(tokenBlockEnd)
+			body = newList(t.peek().pos)
+		case "else":
+			if inElse {
+				panic("Else encountered after previous else")
+			}
+			cond.Body = body
+			node.Conditionals = append(node.Conditionals, cond)
+			t.expect(tokenBlockBegin)
+			t.nextNonSpace()
+			t.expect(tokenBlockEnd)
+			body = newList(t.peek().pos)
+			inElse = true
+		case "endif":
+			// eat the endif and return successfully
+			t.expect(tokenBlockBegin)
+			t.nextNonSpace()
+			t.expect(tokenBlockEnd)
+			if inElse {
+				node.Else = body
+			} else {
+				node.Conditionals = append(node.Conditionals, cond)
+			}
+			return node
+		default:
+			n := t.parseNextNode()
+			if n == nil {
+				panic("EOF inside an If")
+				// EOF inside an If
+				return nil
+			}
+			body.append(n)
+		}
+	}
 	fmt.Println(t.peekNonSpace())
 	return nil
 }

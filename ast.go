@@ -39,6 +39,7 @@ const (
 	NodeIndexExpr
 	NodeSet
 	NodeIf
+	NodeElseIf
 	NodeFor
 )
 
@@ -350,34 +351,89 @@ func newSet(pos Pos, lhs, rhs Node) *SetNode {
 	return &SetNode{NodeSet, pos, lhs, rhs}
 }
 
-func (s *SetNode) String() string { return fmt.Sprintf("set %s = %s", s.lhs, s.rhs) }
+// FIXME: environment needed to really recreate this as it requires block
+// begin and end tags, which we don't technically know
+func (s *SetNode) String() string { return fmt.Sprintf("{%% set %s = %s %%}", s.lhs, s.rhs) }
 func (s *SetNode) Copy() Node {
 	return newSet(s.Pos, s.lhs.Copy(), s.rhs.Copy())
 }
 
-type IfNode struct {
+// A ConditionalNode is a node that has a guard and a body.  If the guard evals
+// as True, then the body is rendered.  Otherwise, it's a Noop.  If's and ElseIf's
+// are modeled this way.
+type ConditionalNode struct {
 	NodeType
 	Pos
 	Guard Node
 	Body  Node
-	Elifs []Node
-	Else  Node
 }
 
-func newIf(pos Pos) *IfNode {
-	return &IfNode{NodeType: NodeIf, Pos: pos}
+func newIfCond(pos Pos) *ConditionalNode {
+	return newConditional(pos, NodeIf)
 }
 
-func (i *IfNode) String() string { return "if" }
-func (i *IfNode) Copy() Node {
-	n := newIf(i.Pos)
-	n.Guard = i.Guard.Copy()
-	n.Body = i.Body.Copy()
-	n.Elifs = make([]Node, len(i.Elifs))
-	for _, e := range i.Elifs {
-		n.Elifs = append(n.Elifs, e.Copy())
+func newElifCond(pos Pos) *ConditionalNode {
+	return newConditional(pos, NodeElseIf)
+}
+
+func newConditional(pos Pos, typ NodeType) *ConditionalNode {
+	return &ConditionalNode{NodeType: typ, Pos: pos}
+}
+
+func (c *ConditionalNode) Copy() Node {
+	n := newConditional(c.Pos, c.NodeType)
+	n.Guard = c.Guard.Copy()
+	n.Body = c.Body.Copy()
+	return n
+}
+
+func (c *ConditionalNode) String() string {
+	b := new(bytes.Buffer)
+	switch c.NodeType {
+	case NodeIf:
+		fmt.Fprintf(b, "{%% if %s %%}", c.Guard)
+	case NodeElseIf:
+		fmt.Fprintf(b, "{%% elif %s %%}", c.Guard)
 	}
-	n.Else = i.Else.Copy()
+	fmt.Fprint(b, c.Body)
+	return b.String()
+}
+
+// IfBlockNode represents a full {% if %}... block.  The if and elif bodies are
+// modeled using the ConditionalNode, and are evaluated in order to determine
+// which body to render.  `Else` will be a ListNode, but can be nil if no such
+// clause is present.
+type IfBlockNode struct {
+	NodeType
+	Pos
+	Conditionals []Node
+	Else         Node
+}
+
+func newIf(pos Pos) *IfBlockNode {
+	return &IfBlockNode{NodeType: NodeIf, Pos: pos, Conditionals: make([]Node, 0, 1)}
+}
+
+func (i *IfBlockNode) String() string {
+	b := new(bytes.Buffer)
+	for _, c := range i.Conditionals {
+		fmt.Fprint(b, c)
+	}
+	if i.Else != nil {
+		fmt.Fprintf(b, "{%% else %%}%s", i.Else)
+	}
+	fmt.Fprint(b, "{% endif %}")
+	return b.String()
+}
+func (i *IfBlockNode) Copy() Node {
+	n := newIf(i.Pos)
+	n.Conditionals = make([]Node, len(i.Conditionals))
+	for _, e := range i.Conditionals {
+		n.Conditionals = append(n.Conditionals, e.Copy())
+	}
+	if i.Else != nil {
+		n.Else = i.Else.Copy()
+	}
 	return n
 }
 
@@ -393,8 +449,10 @@ func newFor(pos Pos) *ForNode {
 	return &ForNode{NodeType: NodeFor, Pos: pos}
 }
 
+// FIXME: This should use the environment's begin and end tags, which we
+// don't have down at this level...
 func (f *ForNode) String() string {
-	return fmt.Sprintf("{% for %s in %s %}%s{% endfor %}", f.ForExpr, f.InExpr, f.Body)
+	return fmt.Sprintf("{%% for %s in %s %%}%s{%% endfor %%}", f.ForExpr, f.InExpr, f.Body)
 }
 func (f *ForNode) Copy() Node {
 	n := newFor(f.Pos)

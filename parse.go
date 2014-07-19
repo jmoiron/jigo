@@ -99,6 +99,16 @@ Precedence    Operator
 
 */
 
+type Template struct {
+	Name string
+	base *Tree
+	env  *Environment
+}
+
+func (t *Template) Eval(context interface{}) {
+
+}
+
 // Tree is the representation of a single parsed template.
 type Tree struct {
 	Name      string    // name of the template represented by the tree.

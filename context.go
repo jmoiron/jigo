@@ -20,8 +20,7 @@ func NewContext(i interface{}) (*Context, error) {
 	var v reflect.Value
 	c := &Context{ctx: i}
 	// indirect v
-	for v = reflect.ValueOf(c); v.Kind() == reflect.Ptr; v = reflect.ValueOf(c) {
-		v = reflect.Indirect(v)
+	for v = reflect.ValueOf(i); v.Kind() == reflect.Ptr; v = reflect.Indirect(v) {
 	}
 	c.kind = v.Kind()
 	c.value = v
@@ -31,23 +30,47 @@ func NewContext(i interface{}) (*Context, error) {
 	return c, nil
 }
 
-type contextStack []Context
-
-// lookup finds a name in the context stack.  If no name is found, then an undefined
-// sentinel is returned.
-func (c contextStack) lookup(name string) (v reflect.Value, ok bool) {
-	// TODO: go through stack
-	return c[0].lookup(name)
-}
-
 // lookup finds a single name in a single context.  If no name is found, then
 // an empty Value is returned and ok is False.
 func (c Context) lookup(name string) (v reflect.Value, ok bool) {
 	switch c.kind {
 	case reflect.Map:
-		v := v.MapIndex(reflect.ValueOf(name))
+		v := c.value.MapIndex(reflect.ValueOf(name))
 		return v, v.IsValid()
 	case reflect.Struct:
+		// FIXME: reflectx is fieldmaps will be much faster but a fair bit more code.
+		// We should use them eventually.
+		v := c.value.FieldByName(name)
+		return v, v.IsValid()
+	default:
+		return v, false
 	}
-	return v, false
+}
+
+// A stack of contexts.  Lookup failures go up the stack until there's a success
+// or a final failure.  This is the way you get nested scopes.
+type contextStack []*Context
+
+func (c *contextStack) push(ctx *Context) {
+	*c = append(*c, ctx)
+}
+
+func (c *contextStack) pop() (ctx *Context) {
+	ctx = (*c)[len(*c)-1]
+	*c = (*c)[:len(*c)-1]
+	return ctx
+}
+
+// lookup finds a name in the context stack.  If no name is found, then an undefined
+// sentinel is returned.
+func (c contextStack) lookup(name string) (v reflect.Value, ok bool) {
+	var ctx *Context
+	for i := len(c) - 1; i >= 0; i-- {
+		ctx = c[i]
+		v, ok = ctx.lookup(name)
+		if ok {
+			return v, ok
+		}
+	}
+	return v, ok
 }

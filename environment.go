@@ -1,6 +1,10 @@
 package jigo
 
-import "errors"
+import (
+	"errors"
+	"io"
+	"io/ioutil"
+)
 
 type Environment struct {
 	// The string marking the start of a block.  Defaults to `{%`.
@@ -105,6 +109,35 @@ func (e *Environment) lex(source, name, filename string) *lexer {
 	}
 	go l.run()
 	return l
+}
+
+func (e *Environment) Load(path string) (*Template, error) {
+	return nil, nil
+}
+
+func (e *Environment) Parse(r io.Reader, name, filename string) (*Template, error) {
+	source, err := ioutil.ReadAll(r)
+	if err != nil {
+		return nil, err
+	}
+	return e.ParseString(string(source), name, filename)
+}
+
+func (e *Environment) ParseFragment(r io.Reader) (*Template, error) {
+	return e.Parse(r, "temporary", "temporary")
+}
+
+func (e *Environment) ParseString(source, name, filename string) (*Template, error) {
+	root, err := e.parse(source, name, filename)
+	if err != nil {
+		return nil, err
+	}
+	t := &Template{
+		Name: name,
+		base: root,
+		env:  e,
+	}
+	return t, nil
 }
 
 // parse completely parses template source, returning the Node errors.

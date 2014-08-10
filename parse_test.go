@@ -15,6 +15,36 @@ func (n NodeType) String() string {
 		return "NodeText"
 	case NodeVar:
 		return "NodeVar"
+	case NodeLookup:
+		return "NodeLookup"
+	case NodeUnary:
+		return "NodeUnary"
+	case NodeFloat:
+		return "NodeFloat"
+	case NodeInteger:
+		return "NodeInteger"
+	case NodeString:
+		return "NodeString"
+	case NodeBool:
+		return "NodeBool"
+	case NodeAdd:
+		return "NodeAdd"
+	case NodeMul:
+		return "NodeMul"
+	case NodeMapExpr:
+		return "NodeMapExpr"
+	case NodeMapElem:
+		return "NodeMapElem"
+	case NodeIndexExpr:
+		return "NodeIndexExpr"
+	case NodeSet:
+		return "NodeSet"
+	case NodeIf:
+		return "NodeIf"
+	case NodeElseIf:
+		return "NodeElseIf"
+	case NodeFor:
+		return "NodeFor"
 	default:
 		return "Unknown Type"
 	}

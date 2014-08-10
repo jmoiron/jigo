@@ -51,6 +51,16 @@ func (c Context) lookup(name string) (v reflect.Value, ok bool) {
 // or a final failure.  This is the way you get nested scopes.
 type contextStack []*Context
 
+func NewContextStack(i interface{}) contextStack {
+	c := make(contextStack, 0, 4)
+	ctx, err := NewContext(i)
+	if err != nil {
+		panic(err)
+	}
+	c.push(ctx)
+	return c
+}
+
 func (c *contextStack) push(ctx *Context) {
 	*c = append(*c, ctx)
 }

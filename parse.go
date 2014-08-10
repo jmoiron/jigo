@@ -105,8 +105,11 @@ type Template struct {
 	env  *Environment
 }
 
-func (t *Template) Eval(context interface{}) {
-
+// Render this template with the given context.
+func (t *Template) Render(context interface{}) (string, error) {
+	c := NewContextStack(context)
+	r := newRenderer(t)
+	return r.render(c)
 }
 
 // Tree is the representation of a single parsed template.

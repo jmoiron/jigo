@@ -30,6 +30,7 @@ getting the language in a usable state *first*.
 * If you want logic-less templates, try [moustache](https://github.com/hoisie/mustache)
 * If you want execution safety, try [liquid](https://github.com/hoisie/mustache) or [mandira](http://jmoiron.github.io/mandira/)
 * If you want contextually aware escaping, try [html/template](http://golang.org/pkg/html/template/)
+* If you want something aiming to be compatible with django templates, try [pongo2](https://github.com/flosch/pongo2)
 
 ## Differences
 
@@ -74,8 +75,9 @@ expression syntax is strongly typed.
 ### Arithmetic
 
 * The basic arithmetic operators `+,-,/,*` work as expected on numerics of the
-  same type.  `%` is only defined on integers, as in Go. The extended operators `**,//`
-  do power and floor-div, repsepctfully.
+  same type.  `%` is only defined on integers, as in Go, and has the same
+  behavior as Go's `%` operator, which *differs* from Python's. The extended operators 
+  `**,//` do power and floor-div, repsepctfully.
 * If floats and ints are mixed, all values are coerced to float64 for the
   computation.
 * String concatenation is allowed via the `~` operator, which coerces all

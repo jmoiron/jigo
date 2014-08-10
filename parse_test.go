@@ -118,7 +118,7 @@ func (p *parsetest) Test(input string, test parseTest) {
 			t.Errorf("Type mismatch: expecting %dth to be %s, but was %s", i, nt, rnt)
 		}
 	}
-	spewTree(tree.Root, "")
+	//spewTree(tree.Root, "")
 	t.Log(tree.Root)
 }
 

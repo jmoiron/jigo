@@ -38,7 +38,7 @@ func (c Context) lookup(name string) (v reflect.Value, ok bool) {
 		v := c.value.MapIndex(reflect.ValueOf(name))
 		return v, v.IsValid()
 	case reflect.Struct:
-		// FIXME: reflectx is fieldmaps will be much faster but a fair bit more code.
+		// FIXME: reflectx fieldmaps will be much faster but a fair bit more code.
 		// We should use them eventually.
 		v := c.value.FieldByName(name)
 		return v, v.IsValid()

@@ -332,7 +332,7 @@ func newIndexExpr(val, idx Node) *IndexExpr {
 }
 
 func (i *IndexExpr) String() string {
-	return fmt.Sprintf("%s[%s}", i.Value, i.Index)
+	return fmt.Sprintf("%s[%s]", i.Value, i.Index)
 }
 
 func (i *IndexExpr) Copy() Node {

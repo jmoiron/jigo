@@ -29,19 +29,26 @@ func (r *renderer) render(c contextStack) (string, error) {
 	return r.b.String(), err
 }
 
+func (r *renderer) renderNode(n Node) error {
+	switch t := n.(type) {
+	case *TextNode:
+		_, err := r.b.Write(t.Text)
+		return err
+	case *VarNode:
+		return r.renderVar(t)
+	case *IfBlockNode:
+		return r.renderCond(t)
+	case *ListNode:
+		return r.renderList(t)
+	default:
+		return fmt.Errorf("Unknown node type %v", t.Type())
+	}
+
+}
+
 func (r *renderer) renderList(n *ListNode) error {
-	var err error
 	for _, node := range n.Nodes {
-		switch t := node.(type) {
-		case *TextNode:
-			r.b.Write(t.Text)
-		case *VarNode:
-			err = r.renderVar(t)
-		case *IfBlockNode:
-			err = r.renderCond(t)
-		default:
-			return fmt.Errorf("Unknown node type %v", t.Type())
-		}
+		err := r.renderNode(node)
 		if err != nil {
 			return err
 		}
@@ -69,6 +76,24 @@ func (r *renderer) renderVar(n *VarNode) error {
 
 // renderCond renders evaluates and renders conditional block tags
 func (r *renderer) renderCond(n *IfBlockNode) error {
+	for _, cond := range n.Conditionals {
+		c := cond.(*ConditionalNode)
+		g, err := eval(c.Guard, r.c)
+		if err != nil {
+			return err
+		}
+		val, err := asBool(g)
+		if err != nil {
+			return fmt.Errorf(`Non-boolean "%s" used in boolean context.`, g)
+		}
+		if val {
+			return r.renderNode(c.Body)
+		}
+	}
+	// if there's an else, render it
+	if n.Else != nil {
+		return r.renderNode(n.Else)
+	}
 	return nil
 }
 

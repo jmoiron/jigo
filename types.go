@@ -63,6 +63,13 @@ func typeOf(i interface{}) vartype {
 	return unknownType
 }
 
+func asBool(i interface{}) (bool, error) {
+	if typeOf(i) != boolType {
+		return false, fmt.Errorf("%s is not boolean", i)
+	}
+	return i.(bool), nil
+}
+
 func asInteger(i interface{}) (int64, bool) {
 	switch t := i.(type) {
 	case uint:

@@ -1,36 +1,48 @@
 # jigo
 
-Jigo is a Jinja2-like template language for Golang.
+[![Build Status](https://drone.io/github.com/jmoiron/jigo/status.png)](https://drone.io/github.com/jmoiron/jigo/latest) [![Godoc](http://img.shields.io/badge/godoc-reference-blue.svg?style=flat)](https://godoc.org/github.com/jmoiron/jigo) [![license](http://img.shields.io/badge/license-MIT-red.svg?style=flat)](https://raw.githubusercontent.com/jmoiron/jigo/master/LICENSE) ![version](http://img.shields.io/badge/version-pre--α-4ECDC4.svg?style=flat)
+
+
+Jigo is a Jinja2-like template language for Go.  It is in *pre-alpha* stages and **not
+yet ready for use much less production**.  Any documentation you see here is subject
+to change.  Jigo's name is also subject to change.
 
 ## Goals
 
-The goal was to provide a templating language for Go that would suit both
-backend developers and frontend designers.  As the Django template system
-has shown itself to be capable at this, and Jinja2 is refinement on that
-system, it was more or less copied to create Jigo.
+The goal of jigo is to create a template system which is powerful, flexible, and
+familiar.  The [Django template][django] syntax has inspired [Jinja2][jinja2], 
+[Twig][twig] in php, [Liquid][liquid] in Ruby, [Jinja-JS][jinja-js] in JavaScript,
+and indeed [Pongo2][pongo2] in Go.  
 
-Django's template system is nearly language agnostic, but Jinja2's allows
-for some limited programming within the templates, including support for
-sophisticated python expressions.  It can do this easily as Python is
-interpreted and has compilation tools (not to mention [eval](https://docs.python.org/2/library/functions.html#eval) and
-[literal_eval](https://docs.python.org/2/library/ast.html#ast.literal_eval)), but these expressions are not consistent with what is
-possible or expedient in Go.
+Although jigo is an outright attempt to implement a very functional subset of
+Jinja2's semantics, the fact that it is written in Go means that much of Jinja2's
+support for rich Python expressions and semantics are dropped.
 
-[Twig](http://twig.sensiolabs.org/), a Jinja2-like template system implemented in PHP, allows for a
-limited expression syntax which more closely mimics Python's than PHP's.
-Jigo allows for a similarly Python-inspired expression syntax, which will
-have a clean, repeatable two way mapping to Go types and are strongly type-checked
-at runtime.
+[Twig][twig](http://twig.sensiolabs.org/), a Jinja2-like template system implemented
+in PHP, allows for a limited expression syntax which more closely mimics Python's 
+than PHP's. Jigo allows for a similarly Python-inspired expression syntax, with a
+clean, explicit two way mapping to Go types and stronger type matching requirements.
 
-There are no plans and currently no support for context-aware escaping.
-Because of its inclusion in html/template, this is a big deal for many in the Go
-community, and while I'm not against adding it to Jigo, I am more interested in 
-getting the language in a usable state *first*.
+Unlike Go's [html/template][htmltemplate], There are no plans and currently no support for 
+context-aware escaping. Because of `html/template`, this is a big deal for many 
+in the Go community, and while I'm not against adding it to Jigo, I am more interested
+in  getting the language in a usable state *first*.
 
-* If you want logic-less templates, try [moustache](https://github.com/hoisie/mustache)
-* If you want execution safety, try [liquid](https://github.com/hoisie/mustache) or [mandira](http://jmoiron.github.io/mandira/)
-* If you want contextually aware escaping, try [html/template](http://golang.org/pkg/html/template/)
-* If you want something aiming to be compatible with django templates, try [pongo2](https://github.com/flosch/pongo2)
+* If you want logic-less templates, try [moustache][moustache-go]
+* If you want execution safety, try [liquid][liquid-go] or [mandira][mandira]
+* If you want contextually aware escaping, try [html/template][htmltemplate]
+* If you want something aiming to be compatible with django templates, try [pongo2][pongo2]
+
+[django]: https://docs.djangoproject.com/en/dev/topics/templates/ "Django Templates"
+[jinja2]: http://jinja.pocoo.org/docs/ "Jinja2 Templates"
+[twig]: http://twig.sensiolabs.org/ "Twig"
+[liquid]: http://liquidmarkup.org/ "Liquid Markup"
+[jinja-js]: https://github.com/sstur/jinja-js "Jinja-js"
+[pongo2]: https://github.com/flosch/pongo2 "Pongo2 Templates"
+[moustache-go]: https://github.com/hoisie/mustache "Mustache"
+[liquid-go]: https://github.com/karlseguin/liquid "Liquid"
+[mandira]: https://jmoiron.github.io/mandira/ "Mandira"
+
 
 ## Differences
 
@@ -57,7 +69,30 @@ time:
 ## Expressions
 
 Expressions are coerced to strings at render time with `fmt.Sprint`, but
-expression syntax is strongly typed.
+expression syntax is strongly typed.  Unlike Go, integer and floating point
+arithmetic can be mixed, but any introduction of floats coerces all values
+in the expression to float.  
+
+Function calling semantics allow for keyword arguments if the function's final
+argument is of type `jigo.Kwargs`.  Varargs are allowed if a funciton is variadic
+or the final argument is of type `jigo.Args`.  For a function to be both
+variadic *and* keyword, it must accept (`jigo.Args`, `jigo.Kwargs`) in that order.
+
+Jigo follows [Go's operator precedence](http://golang.org/ref/spec#Operator_precedence)
+*and* Go's definition of `%`, which is *remainder*, like C, and unlike
+Python.  `%` is only defined in integers, and will be a compile time error on
+float literals and a runtime error on float variables.
+
+### Other Operators:
+
+* `**` is power, eg `2**4 = 16`
+* `//` is floor-div, eg. `14//3 = 4`
+* `~` is a string concatenation object, which explicitly coerces both sides to
+  the string type via `fmt.Sprint`
+* `is` will perform [tests]() similar to Jinja2.
+* `in` is only valid for array, slice and map types.  It is linear on arrays and slices.
+* `[]` is the selection operator, only valid on array, slice, and map types.
+* `.` is the attribute operator, only valid on struct types.
 
 ### Literals
 
@@ -65,33 +100,10 @@ expression syntax is strongly typed.
 * All numeric literals with a "." in it become `float64`
 * Strings are standard " delimited, with \\ escapes.  No multi-line or \`\` 
   string syntax support.
-* Lists are defined as `'[' expr [, expr]... ']'`, and map to `[]interface{}`
+* Lists are defined as `'[' expr [, expr]... ']'`, and map to the Go type `[]interface{}`
 * Hashes are defined as `'{' stringExpr ':' expr [, stringExpr ':' expr]... '}'`,
-  and map to `map[string]interface{}`.  A stringExpr is an expression that is
+  and map to `map[string]interface{}`.  A `stringExpr` is an expression that is
   coerced to a string automatically.  This means that the "1" and 1 represent the
   same key.
 * No advanced python expressions/literals (comprehensions, sets, generators, etc).
-
-### Arithmetic
-
-* The basic arithmetic operators `+,-,/,*` work as expected on numerics of the
-  same type.  `%` is only defined on integers, as in Go, and has the same
-  behavior as Go's `%` operator, which *differs* from Python's. The extended operators 
-  `**,//` do power and floor-div, repsepctfully.
-* If floats and ints are mixed, all values are coerced to float64 for the
-  computation.
-* String concatenation is allowed via the `~` operator, which coerces all
-  surrounding arguments to strings.  `+` will work if all types are strictly
-  `string`, but will fail a type check otherwise.
-
-## Other Operators
-
-* `is` performs a test, similar to Jinja2.
-* `in` is also implemented, but only for slice and map types.
-* There is no `[]`/`.` duality:
-  * `[]`, the selection operator, is only valid on slice and map types
-  * `.`, attribute selection operator, is only valid on struct types
-* Function calling semantics allow for keyword arguments if the
-  function's final argument is of type `jigo.Kwargs`.  Varargs are allowed
-  if a funciton is variadic or the final argument is of type `jigo.Varargs`.
 

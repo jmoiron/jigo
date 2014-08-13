@@ -18,17 +18,17 @@ Although jigo is an outright attempt to implement a very functional subset of
 Jinja2's semantics, the fact that it is written in Go means that much of Jinja2's
 support for rich Python expressions and semantics are dropped.
 
-[Twig][twig](http://twig.sensiolabs.org/), a Jinja2-like template system implemented
-in PHP, allows for a limited expression syntax which more closely mimics Python's 
-than PHP's. Jigo allows for a similarly Python-inspired expression syntax, with a
-clean, explicit two way mapping to Go types and stronger type matching requirements.
+[Twig][twig], a Jinja2-like template system implemented in PHP, allows for a limited
+expression syntax which more closely mimics Python's than PHP's. Jigo allows for a
+similarly Python-inspired expression syntax, with a clean, explicit two way mapping
+to Go types and stronger type matching requirements.
 
 Unlike Go's [html/template][htmltemplate], There are no plans and currently no support for 
 context-aware escaping. Because of `html/template`, this is a big deal for many 
 in the Go community, and while I'm not against adding it to Jigo, I am more interested
 in  getting the language in a usable state *first*.
 
-* If you want logic-less templates, try [moustache][moustache-go]
+* If you want logic-less templates, try [moustache][moustache-go] (*note* buggy and unmaintained)
 * If you want execution safety, try [liquid][liquid-go] or [mandira][mandira]
 * If you want contextually aware escaping, try [html/template][htmltemplate]
 * If you want something aiming to be compatible with django templates, try [pongo2][pongo2]
@@ -42,6 +42,7 @@ in  getting the language in a usable state *first*.
 [moustache-go]: https://github.com/hoisie/mustache "Mustache"
 [liquid-go]: https://github.com/karlseguin/liquid "Liquid"
 [mandira]: https://jmoiron.github.io/mandira/ "Mandira"
+[htmltemplate]: https://golang.org/pkg/html/template "html/template"
 
 
 ## Differences
